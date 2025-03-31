@@ -285,3 +285,123 @@ repository_impl(data) -> repository(domain) <- controller(presentation) 이와 �
 그러나 1. 여러 곳에서 하나의 데이터가 쓰이게 될 상황, 2. repository와 presentation의 변화 상황을 고려하면 usecase를 지금 도입하는게 부담은 아니라고 최종 판단했습니다.
 
 ##### 2. data/model과 domain/entity의 구분은 필요한가??
+
+클린 아키텍처를 처음 공부하면서 제일 궁금했던 것이 model과 entity의 차이, 그리고 필요성입니다.
+개념적으로 결국 데이터를 추상화하는 파일들이 존재하게 되고, 이에 대한 코드가 중복이 되는 느낌을 받았습니다.
+
+그래서 최초에는 말그대로 중복인 코드 상태로 data/model과 domain/entity가 존재했습니다.
+data 영역에서는 model을 사용하고, domain 및 presentation에서는 entity를 사용하도록 했습니다.
+이들 사이에는 mapper를 만들어서 model <-> entity 간 변환을 구현했습니다.
+
+그러다가 '아, 이래서 model과 entity를 구분하는구나'를 느끼게 된 순간이 있습니다.
+
+플러터에서 가장 자주 쓰이는 sqflite 데이터베이스는 DateTime 타입이 없습니다.
+청모 프로젝트에는 날짜/시간 정보를 담는 date라는 필드가 있는데, sqflite에 적용하기 위해서는
+
+```dart
+@freezed
+class ScheduleModel with _$ScheduleModel {
+  factory ScheduleModel({
+    required String link,
+    required String thumbnail,
+    required String groom,
+    required String bride,
+    required String date,
+    required String location,
+  }) = _ScheduleModel;
+
+  factory ScheduleModel.fromJson(Map<String, dynamic> json) =>
+      _$ScheduleModelFromJson(json);
+}
+```
+
+이렇게 String 형태로 선언해놓고,
+
+```dart
+ScheduleModel(date: today.toIso8601String());
+...
+DateTime date = DateTime.parse(schedule.date);
+```
+
+이렇게 정해진 포맷의 String으로 변환을 해야했습니다.
+이러다보니 앱 전반에서는 DateTime 타입으로 날짜를 처리하는데, db에 넣을 때에는 String 타입으로 맞춰야 하며,
+db에서 데이터를 읽을 때에도 String을 DateTime으로 변환하는 아주 귀찮고 복잡한 작업을 해왔습니다.
+
+이때 data 영역과 domain 영역의 모델을 분리해야 한다는 것을 느꼈습니다.
+DateTime과 String 간의 변환은 mapper에서 담당해주고, 각 모델들은 각 영역에 맞게 선언해놓을 수 있었습니다.
+그리하여 적용된 모습은,
+
+```dart
+// data/schedule_model.dart
+@freezed
+class ScheduleModel with _$ScheduleModel {
+  factory ScheduleModel({
+    required String link,
+    required String thumbnail,
+    required String groom,
+    required String bride,
+    required String date,
+    required String location,
+  }) = _ScheduleModel;
+
+  factory ScheduleModel.fromJson(Map<String, dynamic> json) =>
+      _$ScheduleModelFromJson(json);
+}
+```
+
+```dart
+// domain/schedule.dart
+@freezed
+class Schedule with _$Schedule {
+  const factory Schedule({
+    required String link,
+    required String thumbnail,
+    required String groom,
+    required String bride,
+    required DateTime date,
+    required String location,
+  }) = _Schedule;
+}
+```
+
+```dart
+// data/mapper/schedule_mapper.dart
+import '../models/schedule/schedule_model.dart';
+import '../../domain/entities/schedule.dart';
+
+/// ScheduleMapper class converts Schedule(entity, domain) <-> ScheduleModel(model, data)
+class ScheduleMapper {
+  /// Converts Schedule(entity, domain) -> ScheduleModel(model, data)
+  static ScheduleModel toModel(Schedule entity) {
+    return ScheduleModel(
+      link: entity.link,
+      thumbnail: entity.thumbnail,
+      groom: entity.groom,
+      bride: entity.bride,
+      date: entity.date.toIso8601String(),
+      location: entity.location,
+    );
+  }
+
+  /// Converts ScheduleModel(model, data) -> Schedule(entity, domain)
+  static Schedule toEntity(ScheduleModel model) {
+    return Schedule(
+      link: model.link,
+      thumbnail: model.thumbnail,
+      groom: model.groom,
+      bride: model.bride,
+      date: DateTime.parse(model.date),
+      location: model.location,
+    );
+  }
+}
+```
+
+이렇게 구현하였습니다.
+또한 entity는 그 자체로 순수한 모델이며, 어떻게 보면 사용자 입장에서 마주하는 경험을 추상화한 모델인만큼 다른 곳에서 쓰일 소요가 없었습니다.
+따라서 entity에서는 fromJson, toJson과 같은 변환 기능이 없어도 되었습니다.
+
+이렇게 model과 entity를 나눠놓은 덕분에, domain 영역과 presentation 영역은 사용자에게 제공할 경험이 바뀌지 않는 이상 유지될 수 있으며,
+data 영역에서 source가 바뀌는 상황에 대응하기 더욱 편리해졌습니다.
+만약 DateTime을 지원하는 db로 마이그레이션하거나 아예 다른 형태의 db를 사용한다고 해도, data의 model과 mapper만 만들어주면 되니까요.
+괜히 나누는게 아니었구나, 깨닫는 경험이었습니다.
