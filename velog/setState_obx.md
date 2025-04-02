@@ -1,72 +1,34 @@
 ## 개요
 
-플러터의 가장 기본 상태 관리 기법인 setState. 이것이 어떻게 동작하는지 알고 계신가요?
-setState가 상태의 변화를 만들고 이를 화면에 보여주기까지의 과정을 정리하고, 나아가 GetX의 Obx와도 비교 해보겠습니다.
+플러터의 기본 상태 관리 도구는 아무래도 State와 setState()입니다.
+문득 setState()를 통해 상태 변화를 만들었을 때 어떻게 화면에 그 변화가 적용되는지 궁금해졌습니다.
+이를 알아보기 위해 setState()부터 플러터 엔진의 화면 그리기 과정을 소스코드를 통해 확인, 분석해보았습니다.
 
-### setState부터 쭉 따라가보는 동작 원리
+_핵심 코드만을 보기 위해 많은 부분을 삭제하였으니, 자세한 코드와 주석을 확인하시려면 원본 파일을 찾아보시는 것을 추천드립니다._
 
-플러터 소스코드를 쭉 따라가보면서 setState가 어떻게 동작하는지 확인해보겠습니다.
+### 1. setState: setState()를 호출했을 때 일어나는 일
 
 먼저 찾을 코드는 setState 메소드를 선언한 부분입니다.
 packages/flutter/lib/src/widgets/framework.dart 파일에 선언되어 있습니다.
-수 많은 주석과 소스코드 덕분에 분량이 아주 많은데, setState와 State 클래스 관련 내용만 확인해보겠습니다.
 
 ```dart
 // lib/src/widgets/framework.dart
 abstract class State<T extends StatefulWidget> with Diagnosticable {
   T get widget => _widget!;
   T? _widget;
-
-  _StateLifecycle _debugLifecycleState = _StateLifecycle.created;
-
-  bool _debugTypesAreRight(Widget widget) => widget is T;
-
-  BuildContext get context {
-    assert(() {
-      if (_element == null) {
-        throw FlutterError();
-      }
-      return true;
-    }());
-    return _element!;
-  }
-
+  ...
   StatefulElement? _element;
 
   @protected
   void setState(VoidCallback fn) {
-    assert(() {
-      if (_debugLifecycleState == _StateLifecycle.defunct) {
-        throw FlutterError.fromParts(<DiagnosticsNode>[
-          ErrorSummary('setState() called after dispose(): $this'),
-          ...
-        ]);
-      }
-      if (_debugLifecycleState == _StateLifecycle.created && !mounted) {
-        throw FlutterError.fromParts(<DiagnosticsNode>[
-          ErrorSummary('setState() called in constructor: $this'),
-          ...
-        ]);
-      }
-      return true;
-    }());
+    ...
     final Object? result = fn() as dynamic;
-    assert(() {
-      if (result is Future) {
-        throw FlutterError.fromParts(<DiagnosticsNode>[
-          ErrorSummary('setState() callback argument returned a Future.'),
-          ...
-        ]);
-      }
-      return true;
-    }());
+    ...
     _element!.markNeedsBuild();
   }
   ...
 }
 ```
-
-_주석이 너무 많아 삭제했는데, 클래스 전반의 이해를 위해 읽는 것을 추천드립니다._
 
 State 클래스에는 widget, StatefulElement \_element, 그리고 setState() 등의 메소드가 선언되어 있습니다.
 여기서 setState()의 마지막 줄을 보면 \_element!.markNeedsBuild()을 호출하는 것을 알 수 있습니다.
@@ -77,16 +39,16 @@ State 클래스에는 widget, StatefulElement \_element, 그리고 setState() �
 
 주요 내용은 해당 element가 dirty하다고 표시하며, 이를 전역 list에 추가하여 다음 프레임에서 rebuild하도록 한다는 것입니다.
 
-markNeedsBuild() 메소드 코드도 한번 볼까요??
-markNeedsBuild()는 StatefulElement 클래스의 메소드이며, StatefulElement는 State 클래스 내에 \_element 객체로 사용됩니다.
-마찬가지로 관련 부분만 간단히 살펴보면,
+StatefulElement \_element의 메소드인 `markNeedsBuild()`도 한번 볼까요??
 
 ```dart
+// lib/src/widgets/framework.dart
 abstract class StatefulElement... {
   ...
   bool _dirty = true;
   bool _inDirtyList = false;
   bool _debugBuiltOnce = false;
+  BuildOwner owner;
   ...
   void markNeedsBuild() {
     ...
@@ -99,83 +61,123 @@ abstract class StatefulElement... {
 }
 ```
 
-역시 마지막 부분에 scheduleBuildFor()라는 메소드를 호출합니다.
-해당 메소드의 설명은,
+여기서는 BuildOwner owner.scheduleBuildFor(this)를 호출합니다.
+this를 통해 element 자체를 전달하는 것을 알 수 있습니다.
+코드를 그대로 읽어보면 BuildOwner에게 이 element를 위한 빌드 스케쥴을 예약해라 정도로 해석할 수 있겠네요.
+해당 메소드의 docstring은,
 
 > Adds an element to the dirty elements list so that it will be rebuilt when [WidgetsBinding.drawFrame] calls [buildScope].
 
-앞선 코드와 유사하게 흐름이 진행됩니다.
-여기서 결국엔 WidgetsBinding.drawFrame에서 리빌드를 실행하도록 한다는 것을 알 수 있습니다.
+결국 scheduleBuildFor(this)는 해당 element를 dirty로 표시, dirtyElements 리스트에 넣어주는 것까지 수행합니다.
+그 이후에 아직 보지 않았지만 WidgetsBinding.drawFrame이 buildScope을 호출하면서 리빌드가 실행되고, 이 과정에서 해당 element가 새로 빌드될거라는 것을 알 수 있습니다.
 
-그럼 최종적으로 WidgetsBinding.drawFrame이 어떻게 구현되어있는지를 알아야 플러터가 dirty로 만들어놓은 element들을 리빌드 하는지 알 수 있겠네요.
+우선 여기까지의 과정을 통해 setState()가 호출되었을 때 어떤 일이 일어나는지 모두 확인해보았습니다.
+현재까지 확인한 것은, setState를 호출하면 해당 element를 dirty로 표시하고, BuildOwner에게 해당 element에 대한 빌드 스케쥴을 예약한다는 것입니다.
 
-WidgetsBinding.drawFrame()은 다음과 같습니다.
+### 2. drawFrame: 그럼 실제로 리빌드는 어떻게 이뤄지는가?
+
+앞선 과정에서 리빌드를 실제로 수행하는 것은 WidgetsBinding.drawFrame()과 buildScope이었습니다.
+WidgetsBinding.drawFrame()부터 시작해봐야겠죠?
+
+lib/src/widgets/binding.dart에 drawFrame() 메소드가 선언되어 있는데, docstring이 상당히 잘 작성되어 있었습니다.
+총 10개의 step으로 나눠서 작성해놓았는데, 이를 먼저 간단히 정리해보겠습니다.
+
+1. 새로운 프레임을 만드는 것은 handleBeginFrame과 handleDrawFrame이 담당하며, 이들은 플러터 엔진이 호출한다.
+2. handleDrawFrame은 drawFrame을 호출하며, 여기서 앞서 dirty로 표시된 element들이 리빌드된다.
+
+좀 더 깊은 곳까지 닿은 것 같습니다. 이에 대한 실제 drawFrame 메소드를 확인해보면,
 
 ```dart
-  @override
-  void drawFrame() {
-    assert(!debugBuildingDirtyElements);
-    assert(() {
-      debugBuildingDirtyElements = true;
-      return true;
-    }());
-
-    TimingsCallback? firstFrameCallback;
-    bool debugFrameWasSentToEngine = false;
-    if (_needToReportFirstFrame) {
-      assert(!_firstFrameCompleter.isCompleted);
-
-      firstFrameCallback = (List<FrameTiming> timings) {
-        assert(debugFrameWasSentToEngine);
-        if (!kReleaseMode) {
-          // Change the current user tag back to the default tag. At this point,
-          // the user tag should be set to "AppStartUp" (originally set in the
-          // engine), so we need to change it back to the default tag to mark
-          // the end of app start up for CPU profiles.
-          developer.UserTag.defaultTag.makeCurrent();
-          developer.Timeline.instantSync('Rasterized first useful frame');
-          developer.postEvent('Flutter.FirstFrame', <String, dynamic>{});
-        }
-        SchedulerBinding.instance.removeTimingsCallback(firstFrameCallback!);
-        firstFrameCallback = null;
-        _firstFrameCompleter.complete();
-      };
-      // Callback is only invoked when FlutterView.render is called. When
-      // sendFramesToEngine is set to false during the frame, it will not be
-      // called and we need to remove the callback (see below).
-      SchedulerBinding.instance.addTimingsCallback(firstFrameCallback!);
+// lib/src/widgets/binding.dart
+@override
+void drawFrame() {
+  assert(!debugBuildingDirtyElements);
+  assert(() {
+    debugBuildingDirtyElements = true;
+    return true;
+  }());
+  ...
+  TimingsCallback? firstFrameCallback;
+  bool debugFrameWasSentToEngine = false;
+  ...
+  try {
+    if (rootElement != null) {
+      buildOwner!.buildScope(rootElement!);
     }
-
-    try {
-      if (rootElement != null) {
-        buildOwner!.buildScope(rootElement!);
-      }
-      super.drawFrame();
-      assert(() {
-        debugFrameWasSentToEngine = sendFramesToEngine;
-        return true;
-      }());
-      buildOwner!.finalizeTree();
-    } finally {
-      assert(() {
-        debugBuildingDirtyElements = false;
-        return true;
-      }());
-    }
-    if (!kReleaseMode) {
-      if (_needToReportFirstFrame && sendFramesToEngine) {
-        developer.Timeline.instantSync('Widgets built first useful frame');
-      }
-    }
-    _needToReportFirstFrame = false;
-    if (firstFrameCallback != null && !sendFramesToEngine) {
-      // This frame is deferred and not the first frame sent to the engine that
-      // should be reported.
-      _needToReportFirstFrame = true;
-      SchedulerBinding.instance.removeTimingsCallback(firstFrameCallback!);
-    }
+    super.drawFrame();
+    buildOwner!.finalizeTree();
   }
+  ...
+}
 ```
+
+buildScope에게 rootElement를 인자로 전달하여, 최종적으로 element들을 빌드하는 것을 확인할 수 있습니다.
+buildScope은 어떤식으로 구성되어있냐면,
+
+```dart
+// lib/src/widgets/framework.dart
+void buildScope(Element context, [VoidCallback? callback]) {
+  final BuildScope buildScope = context.buildScope;
+  if (callback == null && buildScope._dirtyElements.isEmpty) { // dirtyElements가 없다? => 새로 빌드할 필요가 없다!
+    return;
+  }
+  ...
+  try {
+    _scheduledFlushDirtyElements = true;
+    buildScope._building = true;
+    if (callback != null) {
+      ...
+      Element? debugPreviousBuildTarget;
+      ...
+      try {
+        callback();
+      } ...
+    }
+    buildScope._flushDirtyElements(debugBuildRoot: context);
+  }
+  ...
+}
+```
+
+flushDirtyElements를 호출하여 dirtyElements에 대한 빌드 처리를 진행합니다.
+여기서 조건문을 통해 dirtyElements가 없으면 그냥 return을 하는데, 이를 통해 실제로 빌드할 필요가 없으면 안하는 방식으로 효율을 챙긴 모습입니다.
+
+flushDirtyElements도 마저 볼까요?
+
+```dart
+// lib/src/widgets/framework.dart
+void _flushDirtyElements({required Element debugBuildRoot}) {
+  _dirtyElements.sort(Element._sort);
+  _dirtyElementsNeedsResorting = false;
+  try {
+    for (int index = 0; index < _dirtyElements.length; index = _dirtyElementIndexAfter(index)) {
+      final Element element = _dirtyElements[index];
+      if (identical(element.buildScope, this)) {
+        assert(_debugAssertElementInScope(element, debugBuildRoot));
+        _tryRebuild(element);
+      }
+    }
+  } finally {
+    for (final Element element in _dirtyElements) {
+      if (identical(element.buildScope, this)) {
+        element._inDirtyList = false;
+      }
+    }
+    _dirtyElements.clear();
+    _dirtyElementsNeedsResorting = null;
+    _buildScheduled = false;
+  }
+}
+```
+
+결국 dirty로 표시된 모든 dirtyElements 리스트를 기반으로 tryRebuild(element)를 통해 각 element를 리빌드함을 알 수 있습니다.
+
+여기까지의 분석 결론은 결국,
+
+1. setState()를 통해 해당 element를 dirty로 표시
+2. dirty로 표시된 element들은 플러터 엔진이 호출하는 drawFrame을 통해 리빌드가 됨
+
+과정 대비 결론이 간단해서 허무하기도 하지만..
 
 ### 프레임이란?
 
