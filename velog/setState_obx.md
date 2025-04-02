@@ -177,122 +177,133 @@ void _flushDirtyElements({required Element debugBuildRoot}) {
 1. setState()를 통해 해당 element를 dirty로 표시
 2. dirty로 표시된 element들은 플러터 엔진이 호출하는 drawFrame을 통해 리빌드가 됨
 
-과정 대비 결론이 간단해서 허무하기도 하지만..
+### 3. frame이란?
 
-### 프레임이란?
+여기서 또 하나 중요한 사실은, 우리의 앱이 돌아가는 기기들은 1초에 60번 이상 새로운 프레임을 그립니다.
+플러터에서는 60fps를 기준으로 앱을 실행할 때 1초에 최대 60번 화면을 그릴 수 있는 프레임 기반의 렌더링 루프를 운용합니다.
+즉 1초에 60번씩 화면을 새로 렌더링할지 말지를 결정하게 되며, 앞서 보았던 것처럼 dirty elements가 있으면 해당 프레임에서 element를 리빌드하는 것입니다.
 
-모니터 장비에 관심이 많거나 게임을 즐기시는 분들에겐 익숙한 개념일 수 있습니다.
-**프레임(Frame)**은 화면이 그려지는 기본 단위라고 생각할 수 있습니다.
-
-우리가 보고 있는 스마트폰이나 컴퓨터 화면은 아무것도 하지 않을 때 멈춰있는 것처럼 보이지만, 실제로는 1초에 수십 번씩 화면이 새로 그려지고 있습니다.
-이렇게 화면을 새로 그리는 과정을 **"프레임 갱신"**이라고 부르며, **1초에 몇 번 화면이 그려지는지를 나타내는 지표가 바로 FPS(Frames Per Second)**입니다.
-
-예를 들어, 1초에 60번 화면이 그려진다면 60fps라고 하며, 프레임 수가 높을수록 사용자 입장에서는 더 부드럽고 자연스러운 동작처럼 느껴집니다.
-
-스마트폰에서는 일반적으로 초당 60프레임, 즉 60fps로 동작하며, 최근에는 90fps, 120fps를 지원하는 고주사율 디스플레이도 많아지고 있습니다.
-
-### 플러터의 렌더링 루프
-
-그럼 프레임이 플러터와 무슨 관련이 있을가요??
-60fps 디스플레이를 기준으로 플러터에서는 앱을 실행할 때 1초에 최대 60번 화면을 그릴 수 있도록 프레임 기반 렌더링 루프를 운영합니다.
-즉, 1초에 60번씩 화면을 새로 렌더링할지 말지를 결정하며 이 결정에 따라 상태 변화가 UI에 반영되기도 하고, 변화가 없다면 아무 작업도 하지 않기도 합니다.
-
-이 렌더링 루프는 플러터의 핵심 클래스인 `SchedulerBinding`을 통해 관리됩니다.
-
-#### 1. 프레임 요청: scheduleFrame()
-
-화면에 어떤 변화가 발생하면 플러터는 다음 프레임을 예약합니다.
+이 렌더링 루프의 핵심 함수가 바로 handleBeginFrame, handleDrawFrame입니다.
 
 ```dart
-// packages/flutter/lib/src/scheduler/binding.dart
-/// If necessary, schedules a new frame by calling
-/// [dart:ui.PlatformDispatcher.scheduleFrame].
-///
-/// After this is called, the engine will (eventually) call
-/// [handleBeginFrame]. (This call might be delayed, e.g. if the device's
-/// screen is turned off it will typically be delayed until the screen is on
-/// and the application is visible.) Calling this during a frame forces
-/// another frame to be scheduled, even if the current frame has not yet
-/// completed.
-///
-/// Scheduled frames are serviced when triggered by a "Vsync" signal provided
-/// by the operating system. The "Vsync" signal, or vertical synchronization
-/// signal, was historically related to the display refresh, at a time when
-/// hardware physically moved a beam of electrons vertically between updates
-/// of the display. The operation of contemporary hardware is somewhat more
-/// subtle and complicated, but the conceptual "Vsync" refresh signal continue
-/// to be used to indicate when applications should update their rendering.
-///
-/// To have a stack trace printed to the console any time this function
-/// schedules a frame, set [debugPrintScheduleFrameStacks] to true.
-///
-/// See also:
-///
-///  * [scheduleForcedFrame], which ignores the [lifecycleState] when
-///    scheduling a frame.
-///  * [scheduleWarmUpFrame], which ignores the "Vsync" signal entirely and
-///    triggers a frame immediately.
-void scheduleFrame() {
-    if (_hasScheduledFrame || !framesEnabled) {
-        return;
-    }
-    assert(() {
-        if (debugPrintScheduleFrameStacks) {
-            debugPrintStack(label: 'scheduleFrame() called. Current phase is $schedulerPhase.');
-        }
-        return true;
-    }());
-    ensureFrameCallbacksRegistered();
-    platformDispatcher.scheduleFrame();
-    _hasScheduledFrame = true;
+// lib/src/scheduler/binding.dart
+void handleBeginFrame(Duration? rawTimeStamp) {
+  ...
+  try {
+    // TRANSIENT FRAME CALLBACKS
+    _schedulerPhase = SchedulerPhase.transientCallbacks;
+    final Map<int, _FrameCallbackEntry> callbacks = _transientCallbacks;
+    _transientCallbacks = <int, _FrameCallbackEntry>{};
+    callbacks.forEach((int id, _FrameCallbackEntry callbackEntry) {
+      if (!_removedIds.contains(id)) {
+        _invokeFrameCallback(
+          callbackEntry.callback,
+          _currentFrameTimeStamp!,
+          callbackEntry.debugStack,
+        );
+      }
+    });
+    _removedIds.clear();
+  } finally {
+    _schedulerPhase = SchedulerPhase.midFrameMicrotasks;
+  }
 }
 ```
 
-여기서 window.scheduleFrame()은 Flutter 엔진(C++ 레이어)에 프레임을 요청하는 API입니다.
-→ 이후 실제로 프레임 타이밍이 되면, Flutter는 프레임 처리 콜백인 handleBeginFrame()을 호출합니다.
+handleBeginFrame의 역할은 간단합니다.
+일시적인(transient) 콜백들을 전부 실행하는 것입니다.
+여기서 일시적인 콜백들이라는 것은 애니메이션이 진행될 때마다 호출되는 콜백들인데, 프레임 단위의 실행을 위해 \_transientCallbacks에 등록되는 것 같아 보입니다.
+여기서는 우리가 원하는 dirty element들의 리빌드와 관련 없으니 간단히 넘어가겠습니다.
 
-#### 2. 프레임 시작: handleBeginFrame()
-
-```dart
-@override
-void handleBeginFrame(Duration rawTimeStamp) {
-  _currentFrameTimeStamp = rawTimeStamp;
-  _hasScheduledFrame = false;
-  _frameScheduled = true;
-
-  _executeFrame();
-}
-```
-
-이 시점에서:
-
-현재 프레임의 타임스탬프가 기록되고
-
-\_executeFrame()을 통해 본격적인 렌더링 처리 단계로 진입합니다.
-
-#### 3. 프레임 처리: \_executeFrame() → handleDrawFrame()
+다음은 handleDrawFrame 입니다.
 
 ```dart
-void _executeFrame() {
-  handleDrawFrame();
-  _frameScheduled = false;
-}
-```
-
-handleDrawFrame()은 화면 렌더링의 핵심이 되는 메서드로, 실제로 UI를 갱신해야 하는 요소를 찾아 다시 그리는 작업을 수행합니다.
-
-#### 4. 실제 렌더링: handleDrawFrame()
-
-```dart
-@override
+// lib/src/scheduler/binding.dart
 void handleDrawFrame() {
-  super.handleDrawFrame(); // BindingBase
-  buildOwner.buildScope(_dirtyElements);
-  // 이후 layout → paint → composite 단계가 이어짐
+  assert(_schedulerPhase == SchedulerPhase.midFrameMicrotasks);
+  _frameTimelineTask?.finish(); // end the "Animate" phase
+  try {
+    // PERSISTENT FRAME CALLBACKS
+    _schedulerPhase = SchedulerPhase.persistentCallbacks;
+    // 모든 persistent callbacks 실행
+    for (final FrameCallback callback in List<FrameCallback>.of(_persistentCallbacks)) {
+      _invokeFrameCallback(callback, _currentFrameTimeStamp!);
+    }
+
+    // POST-FRAME CALLBACKS
+    _schedulerPhase = SchedulerPhase.postFrameCallbacks;
+    final List<FrameCallback> localPostFrameCallbacks = List<FrameCallback>.of(
+      _postFrameCallbacks,
+    );
+    _postFrameCallbacks.clear();
+    if (!kReleaseMode) {
+      FlutterTimeline.startSync('POST_FRAME');
+    }
+    try {
+      // 모든 post callbacks 실행
+      for (final FrameCallback callback in localPostFrameCallbacks) {
+        _invokeFrameCallback(callback, _currentFrameTimeStamp!);
+      }
+    } finally {
+      if (!kReleaseMode) {
+        FlutterTimeline.finishSync();
+      }
+    }
+  } finally {
+    _schedulerPhase = SchedulerPhase.idle;
+    _frameTimelineTask?.finish(); // end the Frame
+    assert(() {
+      if (debugPrintEndFrameBanner) {
+        debugPrint('▀' * _debugBanner!.length);
+      }
+      _debugBanner = null;
+      return true;
+    }());
+    _currentFrameTimeStamp = null;
+  }
 }
 ```
 
-여기서 핵심은 buildOwner.buildScope()입니다.
-이 메서드는 현재 프레임에서 다시 그려야 할(dirty) 위젯들을 찾아서 build()를 호출합니다.
+위와 같이 동작은 마찬가지로 등록된 persistentCallbacks와 postFrameCallbacks를 실행합니다.
+그럼 여기서 언제 drawFrame을 실행할까요?
+바로 persistentCallbacks에 drawFrame이 예약되어있습니다.
 
-### setState가 동작하는 원리
+앞선 drawFrame이 선언된 파일을 자세히 보면,
+
+```dart
+// lib/src/rendering/binding.dart
+mixin RendererBinding
+    on
+        BindingBase,
+        ServicesBinding,
+        SchedulerBinding,
+        GestureBinding,
+        SemanticsBinding,
+        HitTestable {
+  @override
+  void initInstances() {
+    super.initInstances();
+    _instance = this;
+    _rootPipelineOwner = createRootPipelineOwner();
+    platformDispatcher
+      ..onMetricsChanged = handleMetricsChanged
+      ..onTextScaleFactorChanged = handleTextScaleFactorChanged
+      ..onPlatformBrightnessChanged = handlePlatformBrightnessChanged;
+    addPersistentFrameCallback(_handlePersistentFrameCallback);
+    initMouseTracker();
+    if (kIsWeb) {
+      addPostFrameCallback(_handleWebFirstFrame, debugLabel: 'RendererBinding.webFirstFrame');
+    }
+    rootPipelineOwner.attach(_manifold);
+  }
+
+  ...
+  void _handlePersistentFrameCallback(Duration timeStamp) {
+    drawFrame();
+    _scheduleMouseTrackerUpdate();
+  }
+```
+
+이렇게, drawFrame이 \_handlePersistentFrameCallback에서 실행되고, 이는 결국 addPersistentFrameCallback을 통해 등록되어 방금 확인한 handleDrawFrame에서 실행되는 것입니다.
+
+handleBeginFrame과 handleDrawFrame은 플러터 엔진에서 프레임마다 실행해주기 때문에, 결론적으로는 1초에 60번 상태 변화를 만들 수 있는 기회가 있는 것입니다.
