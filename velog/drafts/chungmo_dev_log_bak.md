@@ -61,22 +61,7 @@
 
 최근에 받은 모바일 청첩장 서비스 업체들이 모두 달라서 마침 잘 되었다 싶어 테스트 했을 때, 모든 종류의 웹 페이지에 대해 GPT가 잘 동작함을 확인했습니다.
 
-### 0. 설계 : 클린 아키텍처 적용기
-
-본격적인 구현에 앞서 프로젝트 아키텍처를 설계했습니다.
-여기서는 클린 아키텍처를 적용하였는데,
-
-### 1. Create : 백엔드 기능 연결하기
-
-### 2. Save : table_calendar와 sqflite로 일정 보여주기
-
-### 3. Notify : flutter_local_notifications로 푸시 알림 구현
-
-### 4. DI : get_it과 injectable로 의존성 주입 구현
-
-### 5. State : ViewModel과 StatefulWidget의 조화
-
-### 6. Test : injectable과 Mockito로 테스트 편하게 하기
+### 서비스 기획 : "청모 앱"의 시작
 
 ![이제 시작이야!]()
 
