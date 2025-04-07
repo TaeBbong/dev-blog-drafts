@@ -29,7 +29,7 @@ abstract class State<T extends StatefulWidget> with Diagnosticable {
 ```
 
 코드를 보면 `setState()`는 전달받은 콜백(`fn`)을 실행한 후, 연결된 `StatefulElement`의 `markNeedsBuild()`를 호출하는 것을 볼 수 있습니다.
-이 콜백은 우리가 앱을 만들면서 setState()를 사용할 때 내부에 작성하는 기능일 것입니다.
+이 콜백은 우리가 앱을 만들면서 `setState()`를 사용할 때 내부에 작성하는 기능일 것입니다.
 
 예시:
 
@@ -288,6 +288,25 @@ mixin RendererBinding {
 
 `StatefulWidget`과 `setState()`를 잘 쓰려면 최소한의 단위로 위젯을 쪼개서 사용하는 것이 좋겠습니다.
 `dirty`로 표시되는 위젯, `element`의 크기가 작을수록 다음 프레임에서 리빌드 해야하는 `element`가 적어지기 때문입니다.
+
+또한 플러터 엔진이 화면을 그리는 과정을 알게되면서 위젯의 라이프사이클 흐름을 알 수 있는데,
+
+> 1. SchedulerBinding.handleBeginFrame()에서 transient callbacks을 실행
+> 2. SchedulerBinding.handleDrawFrame()에서 persistent callbacks을 실행하면서 drawFrame()이 실행됨
+> 3. SchedulerBinding.handleDrawFrame()에서 post callbacks을 실행
+
+결국 위젯을 실제로 그리는 부분은 `drawFrame()`이 실행되는 `persistent callbacks` 실행 단계입니다.
+
+만약 어떤 코드를 위젯이 다 그려진 후에 실행하고 싶으면 어떻게 하면 될까요?
+다양한 방법이 있겠지만, 해당 작업을 `post callbacks`로 등록하면 될 것입니다.
+
+```dart
+WidgetsBinding.instance!.addPostFrameCallback((_) {
+  doSomething();
+})
+```
+
+이렇게 하면 해당 코드가 `post callbacks`로 등록되어 `drawFrame()` 이후에 실행될 것입니다.
 
 ### 5. 마치며
 
