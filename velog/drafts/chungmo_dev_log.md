@@ -428,9 +428,104 @@ WorkManager는 플러터에서 네이티브 백그라운드 서비스를 구현�
 
 이렇게 하면 백그라운드 서비스를 구현할 필요가 없고, 심지어 앱이 백그라운드에서 매일 같은 시각에(푸시 알림을 보낼만한 스케쥴이 있을지 없을지도 모르는데) 일하는 것을 방지할 수 있습니다.
 
-```dart
+푸시 알림 예약 기능은 zonedSchedule()을 활용해 구현할 수 있었습니다.
 
+일정을 등록할 때에는 아래와 같은 로직이 실행됩니다.
+
+1. 등록하려는 결혼식 일정의 (날짜 - 1일)의 오전 9시에 푸시 알림을 예약
+2. 만약 결혼식 일정이 내일이라면 당일 오전 9시에 푸시 알림을 예약
+3. 결혼식 일정이 오늘을 포함하여 과거라면 푸시 알림을 예약하지 않음
+
+이를 확인하여 일정을 등록하는 코드를 다음과 같이 구현했습니다.
+
+```dart
+// NotificationService
+Future<void> checkPreviousDayForNotify({
+  required Schedule schedule,
+}) async {
+  final int id = await UrlHash.hashUrlToInt(schedule.link);
+  String title = "내일 ${schedule.groom} & ${schedule.bride}님의 결혼식이 있습니다!";
+  tz.TZDateTime scheduleDate =
+      _timeZoneSetting(scheduleDate: schedule.date, hour: 9, minute: 0);
+
+  final now = tz.TZDateTime.now(scheduleDate.location);
+  final todayEleven = tz.TZDateTime(
+      scheduleDate.location, now.year, now.month, now.day, 11, 0);
+
+  if (scheduleDate.isAtSameMomentAs(todayEleven) &&
+      now.isAfter(todayEleven)) {
+    final DateTime tomorrow = DateTime.now().add(const Duration(days: 1));
+    scheduleDate = tz.TZDateTime(scheduleDate.location, tomorrow.year,
+        tomorrow.month, tomorrow.day, 9, 0);
+    title = "오늘 ${schedule.groom} & ${schedule.bride}님의 결혼식이 있습니다!";
+  } else if (scheduleDate.isBefore(todayEleven)) {
+    return;
+  }
+
+  await addNotifySchedule(
+      id: id, appName: '청모', title: title, scheduleDate: scheduleDate);
+}
 ```
+
+여기서 addNotifySchedule()은 zonedSchedule()을 활용해 푸시 알림을 예약하는 함수입니다.
+
+```dart
+Future<void> addNotifySchedule(
+    {required int id,
+    required String appName,
+    required String title,
+    required tz.TZDateTime scheduleDate}) async {
+
+  await _localNotifyPlugin.zonedSchedule(
+    id,
+    "청모",
+    title,
+    scheduleDate,
+    details,
+    uiLocalNotificationDateInterpretation:
+        UILocalNotificationDateInterpretation.absoluteTime,
+    androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+    payload: scheduleDate.toIso8601String(),
+  );
+}
+```
+
+일정을 수정하거나 삭제하면 어떻게 해야할까요?
+
+1. 기존 예약된 푸시 알림을 삭제
+2. 결혼식 날짜가 수정되었다면 새롭게 푸시 알림을 예약
+
+이 과정에서 기존 예약된 푸시 알림을 삭제하는 기능이 필요했고,
+우리는 Schedule 모델에서 link를 키로 사용하고 있었기 때문에 이를 기반으로 푸시 알림 등록할 때 id를 설정, 찾아서 삭제할 수 있었습니다.
+
+```dart
+Future<void> cancelNotifySchedule({required String link}) async {
+  final int id = await UrlHash.hashUrlToInt(link);
+  await _localNotifyPlugin.cancel(id);
+}
+```
+
+또한 앱이 꺼져있는 상태에서 푸시 알림을 눌러 앱을 키면 해당 일정이 나오는 페이지로 이동해야 합니다.
+이 기능은 onDidReceiveNotificationResponse를 설정하여 구현했습니다.
+
+```dart
+Future<void> onDidReceiveNotificationResponse({required String link}) async {
+  final GetScheduleByLinkUsecase getScheduleByLinkUsecase =
+      getIt<GetScheduleByLinkUsecase>();
+  final Schedule? targetSchedule =
+      await getScheduleByLinkUsecase.execute(link);
+  if (targetSchedule != null) {
+    Get.toNamed('/');
+    Get.toNamed('/detail', arguments: targetSchedule);
+  } else {
+    Get.toNamed('/');
+  }
+}
+```
+
+푸시 알림은 구현 자체는 간단하지만 이처럼 고려할 시나리오들이 많았습니다.
+또한 네이티브 기능을 사용하는 만큼 각 OS별 권한 설정을 잘 알고 있어야 했습니다.
+이번에 "청모" 프로젝트에서 로컬 푸시 알림 기능을 구현하여 다음에도 비슷한 방식의 구현을 할 수 있겠다는 자신감이 생겼습니다.
 
 ### Trouble Shooting #3 : 테스트를 위한 Mock-Up 레포지토리 만들기
 
