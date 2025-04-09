@@ -529,6 +529,134 @@ Future<void> onDidReceiveNotificationResponse({required String link}) async {
 
 ### Trouble Shooting #3 : 테스트를 위한 Mock-Up 레포지토리 만들기
 
+플러터에서 테스트를 할 수 있는 방법은 많이 있지만, 의존성 주입을 함께 고려하여 테스트할 때에는 Mockito 만한게 없었습니다.
+Mockito를 injectable과 함께 사용하면, data sources나 repository 등을 Mock 객체로 만들어서 의존성 주입까지 구현할 수 있습니다.
+그러면 위젯/유닛 단위의 테스트를 할 때 해당 Mock 객체를 주입하여 사용할 수 있는 것입니다.
+
+"청모" 프로젝트는 규모가 크지 않았기 때문에 UI 부분의 테스트는 크게 필요하지 않다고 느꼈고,
+그래서 데이터 처리 및 푸시 알림 관련된 기능만 테스트하면 되겠다고 생각했습니다.
+따라서 테스트 대상을 data/repository로 설정했고, 해당 repository를 테스트 하기 위해 필요한 의존성들을 mockito를 통해 구성했습니다.
+
+먼저 RemoteSource를 구현할 때 @lazySingleton 어노테이션을 설정하여 injectable이 build_runner를 통해 객체를 생성하게끔 하였습니다. LocalSource, NotificationService도 마찬가지로 구현했습니다.
+
+```dart
+@LazySingleton(as: ScheduleRemoteSource)
+class ScheduleRemoteSourceImpl implements ScheduleRemoteSource {
+  final Dio dio = Dio();
+
+  ScheduleRemoteSourceImpl();
+
+  /// Fetch analyzed data in `json` type from Firebase functions API.
+  ///
+  /// If result, returns `ScheduleModel` type data.
+  ///
+  /// If not, throw error.
+  @override
+  Future<ScheduleModel> fetchScheduleFromServer(String link) async {
+    try {
+      final response = await dio.post('${Env.url}/', data: {'link': link});
+      if (response.statusCode == 200) {
+        return ScheduleModel.fromJson(
+            jsonDecode(response.data)..addAll({'link': link}));
+      } else {
+        throw Exception('[-] Failed to fetch data from server');
+      }
+    } catch (e) {
+      throw Exception('[-] Failed to fetch data from server');
+    }
+  }
+}
+```
+
+이후 테스트 코드를 구현할 때 아래와 같이 mocks.dart 파일을 만들어서 mockito, injectable 기반 Mock 객체를 생성하도록 설정했습니다.
+
+```dart
+@GenerateMocks([
+  ScheduleLocalSource,
+  ScheduleRemoteSource,
+  NotificationService,
+])
+void main() {}
+```
+
+build_runner를 통해 코드 생성을 하면, 다음과 같이 mocks.mocks.dart 파일이 생성됩니다.
+
+```dart
+import 'dart:async' as _i5;
+
+import 'package:chungmo/core/services/notification_service.dart' as _i7;
+import 'package:chungmo/data/models/schedule/schedule_model.dart' as _i2;
+import 'package:chungmo/data/sources/local/schedule_local_source.dart' as _i4;
+import 'package:chungmo/data/sources/remote/schedule_remote_source.dart' as _i6;
+import 'package:chungmo/domain/entities/schedule.dart' as _i8;
+import 'package:flutter_local_notifications/flutter_local_notifications.dart'
+    as _i3;
+import 'package:mockito/mockito.dart' as _i1;
+import 'package:timezone/timezone.dart' as _i9;
+
+/// A class which mocks [ScheduleRemoteSource].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockScheduleRemoteSource extends _i1.Mock
+    implements _i6.ScheduleRemoteSource {
+  MockScheduleRemoteSource() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  _i5.Future<_i2.ScheduleModel> fetchScheduleFromServer(String? url) =>
+      (super.noSuchMethod(
+            Invocation.method(#fetchScheduleFromServer, [url]),
+            returnValue: _i5.Future<_i2.ScheduleModel>.value(
+              _FakeScheduleModel_0(
+                this,
+                Invocation.method(#fetchScheduleFromServer, [url]),
+              ),
+            ),
+          )
+          as _i5.Future<_i2.ScheduleModel>);
+}
+```
+
+마지막으로 실제 테스트 코드는 Mock 객체를 활용해 작성할 수 있습니다.
+
+```dart
+import '../../mocks/mocks.mocks.dart'; // build_runner로 생성된 파일
+
+void main() {
+  late ScheduleRepositoryImpl repository;
+  late MockScheduleRemoteSource mockRemoteSource;
+  late MockScheduleLocalSource mockLocalSource;
+  late MockNotificationService mockNotificationService;
+
+  setUp(() {
+    mockRemoteSource = MockScheduleRemoteSource();
+    mockLocalSource = MockScheduleLocalSource();
+    mockNotificationService = MockNotificationService();
+    repository = ScheduleRepositoryImpl(
+        mockRemoteSource, mockLocalSource, mockNotificationService);
+  });
+
+  group('analyzeLink', () {
+    test('should return Schedule when remote source call is successful',
+        () async {
+      // Given
+      when(mockRemoteSource.fetchScheduleFromServer(any))
+          .thenAnswer((_) async => tScheduleModel);
+
+      // When
+      final result = await repository.analyzeLink(tUrl);
+
+      // Then
+      expect(result, tSchedule);
+      verify(mockRemoteSource.fetchScheduleFromServer(tUrl)).called(1);
+    });
+  });
+}
+```
+
+이를 통해 의존성이 복잡하게 구현된 프로젝트에서도 간편하게 Mock 객체를 생성하여 안전한 테스트를 진행할 수 있었습니다.
+
 ### 그 외 사용한 기법과 근거
 
 #### 1. 상태 관리도구를 왜 GetX로 했나?
