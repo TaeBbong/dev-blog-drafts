@@ -1,14 +1,12 @@
-## 청모 앱 개발 로그 - 개발자의 관점에서
-
 ### 들어가며
 
-![청모 브랜드 이미지]()
+<img src="https://velog.velcdn.com/images/taebbong/post/232980df-0818-436a-be4b-be86d5d2c13e/image.png" width="100%">
 
-모바일 청첩장 자동 저장 앱 `청모`를 개발하면서 고민하고 문제를 해결했던 과정을 공유합니다.
+모바일 청첩장 자동 저장 앱 **청모**를 개발하면서 고민하고 문제를 해결했던 과정을 공유합니다.
 
 ### 문제 인식 : 청모는 어떻게 탄생했는가?
 
-![쌓여가는 청첩장]()
+<img src="https://velog.velcdn.com/images/taebbong/post/3b0cd276-4625-402b-8bb1-0db8f3cc8c7b/image.png" width="30%">
 
 20대 후반이 되어가면서 주변에 결혼하는 분들이 많이 있습니다. 종이 청첩장도 좋지만, 받는 입장에선 일정을 확인할 때 보통 모바일 청첩장을 더 많이 보게 되더라구요.
 청첩장을 받고나서 캘린더에 일정과 장소를 그때그때 저장하면 편하겠지만, 보통 저장하지 않고 매번 카톡 채팅방에 들어가서 모바일 청첩장을 찾아 일정을 확인하는 일이 참 많았습니다...
@@ -16,67 +14,159 @@
 
 여기서 식별한 문제점은 2개가 있었는데,
 
-1. 모바일 청첩장이 채팅방 마다 흩어져있으니, 찾는게 어렵다. 모여져 있으면 좋겠다.
-2. 매번 모바일 청첩장을 받고 일정/장소 등 정보를 저장하기 귀찮다. 알아서 저장되면 좋겠다.
+> 1. 모바일 청첩장이 채팅방 마다 흩어져있으니, 찾는게 어렵다. 모여져 있으면 좋겠다.
+> 2. 매번 모바일 청첩장을 받고 일정/장소 등 정보를 저장하기 귀찮다. 알아서 저장되면 좋겠다.
 
-이런 문제점을 인식하여 "청모" 앱을 기획하게 되었습니다.
+이런 문제점을 인식하여 **청모** 앱을 기획하게 되었습니다.
 
 ### 문제 해결 : 청모는 어떻게 문제를 해결하는가?
 
-앞서 식별한 2개의 문제점을 "청모" 앱은 아래와 같이 해결합니다.
+앞서 식별한 2개의 문제점을 **청모** 앱은 아래와 같이 해결합니다.
 
-1. 모바일 청첩장 링크를 입력하여 저장, 모아서 볼 수 있다.
-2. 모바일 청첩장을 "알아서" 파싱하여, 일정/장소 정보를 캘린더에 저장한다.
+> 1. 모바일 청첩장 링크를 입력하여 저장, 모아서 볼 수 있다.
+> 2. 모바일 청첩장을 "알아서" 파싱하여, 일정/장소 정보를 캘린더에 저장한다.
 
 첫번째 문제에 대한 해결은 비교적 간단하고 뻔합니다. 모바일 청첩장 전용 메모앱을 만들겠다는 것이죠.
 이 자체로도 누군가에겐 의미가 있을 수 있으나, 문제를 완전히 해결했다고 보기 어렵습니다.
-모바일 청첩장의 내용을 "알아서" 파싱하여 일정 정보를 저장하는 것이 "청모"의 "킥"이라고 할 수 있겠습니다.
+모바일 청첩장의 내용을 **"알아서"** 파싱하여 일정 정보를 저장하는 것이 **"청모"**의 **"킥"**이라고 할 수 있겠습니다.
 
 ### 개념 증명 : GPT API가 "알아서" 모바일 청첩장을 파싱할 수 있을까?
 
-![GPT는 신이야..]()
+![](https://velog.velcdn.com/images/taebbong/post/50e523f5-a499-4183-ace2-702d2727d6d5/image.png)
 
-여기서 "알아서"는 GPT API가 맡아주었습니다.
-몇번의 프롬프트 테스트를 통해, GPT API에게 모바일 청첩장 웹 페이지 리소스를 전달하면, 100%에 가까운 정확도로 일정 정보를 파싱한다는 것을 확인했습니다.
+여기서 **"알아서"** 는 `GPT API`가 맡아주었습니다.
+몇번의 프롬프트 테스트를 통해, `GPT API`에게 모바일 청첩장 웹 페이지 리소스를 전달하면,
+100%에 가까운 정확도로 일정 정보를 파싱한다는 것을 확인했습니다.
 
-![해줘 실패]()
+![](https://velog.velcdn.com/images/taebbong/post/3d0b4d8f-ec2b-492c-9ce3-347eac8c0fd8/image.png)
 
-초기에는 GPT에게 모바일 청첩장 링크를 전달했습니다. 여기서 일정 정보를 파싱해달라고 했었죠.
-하지만 GPT API는 웹 페이지 접근과 같은 인터렉션에 매우 제한적이었습니다.
+초기에는 직접 모바일 청첩장 링크를 전달했습니다. 여기서 일정 정보를 파싱해달라고 했었죠.
+하지만 `GPT API`는 웹 페이지 접근과 같은 인터렉션에 매우 제한적이었습니다.
+~~이게 올해 초였는데, 요즘엔 웹 탐색 기능이 생기면서 이젠 링크만 던져줘도 알아서 잘 되더라구요...😅~~
 
-![파이썬]()
+```python
+@https_fn.on_request(secrets=["OPENAI_API_KEY"])
+def parse_voucher_handler(req: https_fn.Request) -> https_fn.Response:
+    """POST로 link 데이터를 전달받아 html 파싱, gpt를 통해 적절한 데이터 추출 및 JSON(str)을 반환하는 API 핸들러"""
+    try:
+        data = req.get_json()
+        OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+        voucher = data.get("link")
+        parsed_result = HTML
 
-그 다음 시도로는 html 페이지 리소스를 python의 requests를 통해 가져온 다음, 해당 데이터를 GPT에게 전달했습니다.
-이때 GPT는 놀랍게도 일정 정보를 파싱할 수 있었습니다. 아주 높은 정확도로 말이죠.
+        query = parsed_result + "\n\n"
+        query += '''
+        Extract the required wedding data from the given text and return it in pure JSON format, without any additional text or snippet tags. Ensure that the output follows this exact JSON structure:
 
-여기까지만으로도 GPT API는 모바일 청첩장 내용 파싱이라는 임무를 수행할 수 있었지만, 좀 더 개선이 필요했습니다.
-왜냐하면 html 페이지 리소스에는 불필요한 정보가 너무 많았고, 중복된 텍스트도 많이 있었습니다.
-특히 여러 애니메이션, 디자인 리소스가 포함되는 모바일 청첩장의 특성상 html 페이지 전체를 GPT에게 input으로 전달하면 그 속도가 많이 느려진다는 것을 체감했습니다.
+        {
+            "thumbnail": "",
+            "groom": "",
+            "bride": "",
+            "datetime": "", // ex: 2025-04-26T14:00:00
+            "location": ""
+        }
+         '''
+        client = OpenAI(api_key=OPENAI_API_KEY)
+        model = "gpt-4o-mini"
+        messages = [{
+            "role": "system",
+            "content": "Parse the wedding voucher data into JSON format."
+        }, {
+            "role": "user",
+            "content": query
+        }]
 
-따라서 여기서 한번 더 개선을 해냈습니다. html에서 불필요한 태그, 스크립트를 미리 BeautifulSoup과 같은 전통적인 파서로 제거하고, 텍스트, 이미지 링크 등 주요 정보만 남겨서 GPT에게 input으로 전달했습니다.
-이때 응답속도가 확연히 빨라지는 것을 확인했고, GPT API를 활용할 때 성능 개선을 할 수 있었습니다.
+        # GPT API 호출
+        response = client.chat.completions.create(model=model, messages=messages, response_format={'type': 'json_object'})
 
-![최종 모습]()
+        try:
+            result = response.choices[0].message.content
+            return https_fn.Response(json.dumps(result), status=200, mimetype="application/json", headers=headers)
+        except Exception as e:
+            return https_fn.Response(
+            json.dumps({"error": str(e), "note": f"{result}"}), status=404, mimetype="application/json", headers=headers
+        )
 
-최근에 받은 모바일 청첩장 서비스 업체들이 모두 달라서 마침 잘 되었다 싶어 테스트 했을 때, 모든 종류의 웹 페이지에 대해 GPT가 잘 동작함을 확인했습니다.
+    except Exception as e:
+        return https_fn.Response(
+            json.dumps({"error": str(e) + str(req.get_json())}), status=500, mimetype="application/json", headers=headers
+        )
+```
 
-이렇게 GPT API와 연동하여 동작하는 코드를 만들었고, 이를 Firebase Functions에 배포하여 아주 간단한 백엔드 서버를 구축했습니다.
+그 다음 시도로는 `html` 페이지 리소스를 `python`의 `requests`를 통해 가져온 다음, 해당 데이터를 `GPT`에게 전달했습니다.
+이때 `GPT`는 놀랍게도 일정 정보를 파싱할 수 있었습니다. 아주 높은 정확도로 말이죠.
+
+여기까지만으로도 `GPT API`는 모바일 청첩장 내용 파싱이라는 임무를 수행할 수 있었지만, 좀 더 개선이 필요했습니다.
+왜냐하면 `html` 페이지 리소스에는 불필요한 정보가 너무 많았고, 중복된 텍스트도 많이 있었습니다.
+특히 여러 애니메이션, 디자인 리소스가 포함되는 모바일 청첩장의 특성상 `html` 페이지 전체를 `GPT`에게 `input`으로 전달하면 그 속도가 많이 느려진다는 것을 체감했습니다.
+
+따라서 여기서 한번 더 개선을 해냈습니다. `html`에서 불필요한 태그, 스크립트를 미리 `BeautifulSoup`과 같은 전통적인 파서로 제거하고, 텍스트, 이미지 링크 등 주요 정보만 남겨서 `GPT`에게 `input`으로 전달했습니다.
+이때 응답속도가 확연히 빨라지는 것을 확인했고, `GPT API`를 활용할 때 성능 개선을 할 수 있었습니다.
+
+```python
+def extract_text_content(soup: BeautifulSoup, content_set: Set[str]) -> None:
+    """본문 텍스트 콘텐츠를 추출하여 content_set에 추가합니다."""
+    for element in soup.find_all(["p", "h1", "h2", "h3", "h4", "h5", "h6", "li", "div", "script", "meta", "title"]):
+        text = element.get_text(strip=True)
+        if text and len(text) >= 2 and contains_korean(text):
+            content_set.add(text)
+
+
+def extract_media_content(soup: BeautifulSoup, content_set: Set[str]) -> None:
+    """이미지 및 링크 콘텐츠를 추출하여 content_set에 추가합니다."""
+    for img in soup.find_all("img"):
+        if src := img.get("src"):
+            content_set.add(f"[IMAGE] {src}")
+
+    for link in soup.find_all("link"):
+        if href := link.get("href"):
+            content_set.add(f"[LINK] {href}")
+
+    for anchor in soup.find_all("a"):
+        href = anchor.get("href", "").strip()
+        text = anchor.get_text(strip=True)
+        if href:
+            content_set.add(f"[ANCHOR] {text} → {href}" if text else f"[ANCHOR] {href}")
+
+
+def extract_content_with_images(url: str) -> str:
+    """주어진 URL에서 텍스트와 미디어 콘텐츠를 추출하여 출력합니다."""
+    html = fetch_html(url)
+    if not html:
+        return
+
+    soup = BeautifulSoup(html, "html.parser")
+
+    for tag in soup(["style", "noscript", "link"]):
+        tag.decompose()
+
+    extracted_content: Set[str] = set()
+
+    extract_text_content(soup, extracted_content)
+    extract_media_content(soup, extracted_content)
+
+    return "\n".join(sorted(extracted_content))
+```
+
+최근에 받은 모바일 청첩장 서비스 업체들이 모두 달라서 마침 잘 되었다 싶어 테스트 했을 때, 모든 종류의 웹 페이지에 대해 `GPT`가 잘 동작함을 확인했습니다.
+
+이렇게 `GPT API`와 연동하여 동작하는 코드를 만들었고, 이를 `Firebase Functions`에 배포하여 아주 간단한 백엔드 서버를 구축했습니다.
 
 ### 클린 아키텍처 적용기
 
 본격적인 구현에 앞서 프로젝트 아키텍처를 설계했습니다.
-여기서는 클린 아키텍처를 적용하였는데, 그 이유는 다음과 같습니다.
+여기서는 **클린 아키텍처**를 적용하였는데, 그 이유는 다음과 같습니다.
 
-1. 클린 아키텍처에 대한 이해와 적용 실습
-2. 최소기능으로 시작하여 백엔드, DB 교체 가능성이 높음
+> 1. 클린 아키텍처에 대한 이해와 적용 실습
+> 2. 최소기능으로 시작하여 백엔드, DB 교체 가능성이 높음
 
 클린 아키텍처에 대한 공부가 좀 더 메인 이유였는데, 이 과정에서 클린 아키텍처의 정답을 찾기보단 철학을 존중하고 따르는 것이 중요하다고 느꼈습니다.
 
 여기서 핵심적으로 생각한 철학들은 다음과 같습니다.
 
-1. 가장 안쪽의 레이어는 엔티티, 비즈니스 로직으로 구성되며 이들은 외부 의존성이 없거나 최소가 되어야 한다.
-2. 이를 위해 추상화로 의존성 역전을 발생시킨다.
-3. 각 파일/클래스는 한가지 책임을 가지게 하여 결합도를 낮춘다.
+> 1. 가장 안쪽의 레이어는 엔티티, 비즈니스 로직으로 구성되며 이들은 외부 의존성이 없거나 최소가 되어야 한다.
+> 2. 이를 위해 추상화로 의존성 역전을 발생시킨다.
+> 3. 각 파일/클래스는 한가지 책임을 가지게 하여 결합도를 낮춘다.
 
 위와 같은 철학들을 우선적으로 지키게끔 설계하고 개발했습니다.
 
@@ -113,10 +203,10 @@ main.dart
 
 #### 1. usecase는 왜 있는거지?
 
-처음 공부할 땐 usecase가 비교적 불필요해보여서 빼고 구현하려 했습니다.
-그럼에도 최종적으로는 usecase를 구현하게 되었습니다.
+처음 공부할 땐 `usecase`가 비교적 불필요해보여서 빼고 구현하려 했습니다.
+그럼에도 최종적으로는 `usecase`를 구현하게 되었습니다.
 
-usecase가 있어야 했던 사례는 다음과 같습니다.
+`usecase`가 있어야 했던 사례는 다음과 같습니다.
 
 ```dart
 Future<List<Schedule>> getSchedules() async {
@@ -127,28 +217,28 @@ Future<List<Schedule>> getSchedules() async {
 }
 ```
 
-이 코드는 data/repository에 작성된 코드입니다.
-로컬 데이터 소스, 즉 sqflite에서 데이터를 가져오는 레포지토리 기능입니다.
+이 코드는 `data/repository`에 작성된 코드입니다.
+로컬 데이터 소스, 즉 `sqflite`에서 데이터를 가져오는 레포지토리 기능입니다.
 이 데이터 접근 기능은 여러 곳에서 쓰입니다.
 
-1. Calendar 위젯에서 일정을 달력에 표시하기 위해
-2. ListView 위젯에서 앞으로의 일정, 지난 일정을 표시하기 위해
-3. 메인 페이지에서 등록된 일정 수를 표시하기 위해
+> 1. Calendar 위젯에서 일정을 달력에 표시하기 위해
+> 2. ListView 위젯에서 앞으로의 일정, 지난 일정을 표시하기 위해
+> 3. 메인 페이지에서 등록된 일정 수를 표시하기 위해
 
 이때 각 사용처에서는 필요한 데이터의 형태나 범위 등이 다릅니다.
 
-1. Calendar 위젯 : 전체 일정 중 월 단위 데이터가 필요함
-2. ListView 위젯 : 현재를 기준으로 전체 일정을 둘로 나눈 리스트가 필요함
-3. 메인 페이지 : 전체 일정의 수가 필요함
+> 1. Calendar 위젯 : 전체 일정 중 월 단위 데이터가 필요함
+> 2. ListView 위젯 : 현재를 기준으로 전체 일정을 둘로 나눈 리스트가 필요함
+> 3. 메인 페이지 : 전체 일정의 수가 필요함
 
 클린 아키텍처의 관점에서 보면,
-데이터를 가져오는 기능 자체는 data 영역에서 다뤄지는게 적절하지만, 이렇게 사용처마다 필요한 데이터를 가공하는 코드는 data 영역보단 domain 영역이 더 어울립니다.
+데이터를 가져오는 기능 자체는 **data 영역**에서 다뤄지는게 적절하지만, 이렇게 사용처마다 필요한 데이터를 가공하는 코드는 data 영역보단 **domain 영역**이 더 어울립니다.
 왜냐하면 사용처에서 원하는 데이터의 양식은 사용처가 제일 잘 알기 때문입니다.
 
 또한 위젯과 같은 사용처는 추가/수정이 잦게 일어납니다.
-추가나 수정이 필요할 때마다 레포지토리를 편집하는 것보다, 기존의 레포지토리에서 제공하는 데이터를 활용해 새로운 유즈케이스를 만드는게 더 비용이 적게 들겠다고 판단했습니다.
+추가나 수정이 필요할 때마다 `repository`를 편집하는 것보다, 기존의 `repository`에서 제공하는 데이터를 활용해 새로운 `usecase`를 만드는게 더 비용이 적게 들겠다고 판단했습니다.
 
-따라서 유즈케이스는 사용하는 것으로 결정했고, 이를 적용한 예시는 다음과 같습니다.
+따라서 `usecase`는 사용하는 것으로 결정했고, 이를 적용한 예시는 다음과 같습니다.
 
 ```dart
 /// 전체 일정을 가져와 제공하는 유즈케이스
@@ -175,9 +265,9 @@ class CountSchedulesUsecase {
 
 #### 2. data/model과 domain/entity 둘다 필요한가?
 
-data/model과 domain/entity는 그 코드가 유사하지만, 개념적으로 지향하는 바가 완전히 다릅니다.
+**data/model**과 **domain/entity**는 그 코드가 유사하지만, 개념적으로 지향하는 바가 완전히 다릅니다.
 
-엔티티는 사용자에게 제공되는 데이터, 모델은 DB나 서버에서 처리되는 데이터를 구현한 것입니다.
+`Entity`는 사용자에게 제공되는 데이터, 모델은 DB나 서버에서 처리되는 데이터를 구현한 것입니다.
 
 개념적으로 다르지만 사실 하나만 써도 구현하는데 큰 문제는 없습니다.
 그럼에도 패턴에서 자주 사용되는 이유가 있는데, 이 프로젝트에서도 그런 사례가 있었습니다.
@@ -199,12 +289,12 @@ class ScheduleModel with _$ScheduleModel {
 }
 ```
 
-이 코드는 프로젝트 초기에 사용된 Schedule 모델입니다.
+이 코드는 프로젝트 초기에 사용된 `Schedule` **모델**입니다.
 이땐 모델과 엔티티의 구분 필요를 느끼지 못하여 모델 하나만으로 데이터 저장, 서버 통신, UI 표현 등 모든 곳에 적용하여 왔습니다.
 
-여기서 특이한 점은 date를 String 타입으로 선언한 것인데, 이는 로컬 DB인 sqflite에 DateTime 타입이 없기 때문입니다.
+여기서 특이한 점은 `date`를 `String` 타입으로 선언한 것인데, 이는 로컬 DB인 `sqflite`에 `DateTime` 타입이 없기 때문입니다.
 
-따라서 해당 모델로 DB에 저장하기 위해서는 반드시 String 타입으로 선언해야 했고, 나중에 DateTime을 편집해야 하는 UI 기능을 구현할 때에는,
+따라서 해당 모델로 DB에 저장하기 위해서는 반드시 `String` 타입으로 선언해야 했고, 나중에 `DateTime`을 편집해야 하는 UI 기능을 구현할 때에는,
 
 ```dart
 ScheduleModel(date: today.toIso8601String());
@@ -212,7 +302,7 @@ ScheduleModel(date: today.toIso8601String());
 DateTime date = DateTime.parse(schedule.date);
 ```
 
-이렇게 String <-> DateTime 변환을 그때그때 사용해왔습니다.
+이렇게 **String <-> DateTime** 변환을 그때그때 사용해왔습니다.
 
 너무 불편한 방법이죠?
 이렇게 데이터를 변환하고 편집하는 기능이 여러곳에 흩어지면 데이터의 일관성을 지키기 어려웠습니다.
@@ -234,7 +324,7 @@ class Schedule with _$Schedule {
 }
 ```
 
-그리고 엔티티 <-> 모델 변환을 위한 Mapper를 만들었습니다.
+그리고 엔티티 <-> 모델 변환을 위한 **Mapper**를 만들었습니다.
 
 ```dart
 // data/mapper/schedule_mapper.dart
@@ -271,23 +361,21 @@ class ScheduleMapper {
 
 이처럼 모델과 엔티티를 별도로 구현하여 얻은 이점은 다음과 같습니다.
 
-1. 순수한 엔티티 모델을 통해 사용자에게 일관된 데이터를 제공
-2. UI와 DB 등 쓰이는 여러곳에서 데이터를 변환하지 않고 Mapper를 통해 데이터 변환 일관성 유지
-3. 추후 DB, 서버 등 데이터 소스를 교체할 때 엔티티에 의존하는 UI, 비즈니스 로직은 유지할 수 있음(모델과 레포지토리만 수정하면 됨!)
+> 1. 순수한 엔티티 모델을 통해 사용자에게 일관된 데이터를 제공
+> 2. UI와 DB 등 쓰이는 여러곳에서 데이터를 변환하지 않고 Mapper를 통해 데이터 변환 일관성 유지
+> 3. 추후 DB, 서버 등 데이터 소스를 교체할 때 엔티티에 의존하는 UI, 비즈니스 로직은 유지할 수 있음(모델과 레포지토리만 수정하면 됨!)
 
 ### Trouble Shooting #1 : 일정 수정 후 달력으로 돌아왔을 때 상태 변화 적용 시키기
 
 모바일 청첩장을 파싱하여 등록한 일정을 달력에 보여주게끔 구현했습니다.
 플러터에서는 `table_calendar`라는 위젯을 주로 사용합니다.
 
-![]()
+![](https://velog.velcdn.com/images/taebbong/post/5aa63501-1ac2-4b62-9703-0f46ab7e9486/image.png)
 
-현재 앱에서는 CalendarView, ListView에서 일정을 선택하면 DetailPage로 이동하고, DetailPage에서는 수정 기능이 제공됩니다.
-여기서 일정을 수정하고 나서 돌아가면 CalendarView, ListView로 돌아오게 되는데요,
+현재 앱에서는 `CalendarView`, `ListView`에서 일정을 선택하면 `DetailPage`로 이동하고, `DetailPage`에서는 수정 기능이 제공됩니다.
+여기서 일정을 수정하고 나서 돌아가면 `CalendarView`, `ListView`로 돌아오게 되는데요,
 기본적으로 플러터는 뒤로 가기 액션에서는 화면이 새로 렌더링 되지 않습니다.
 따라서 일정을 수정해도 그 상태에서는 캘린더에 반영이 안된 것처럼 보이게 됩니다.
-
-![]()
 
 이 문제를 해결하기 위해 처음 선택한 방법은 캘린더로 돌아올 때 캘린더 페이지를 새로고침하는 것이었습니다.
 이 방법을 처음 떠올린 이유는 가장 구현하기 쉬운 방법이기 때문이었습니다.
@@ -298,21 +386,23 @@ Get.offNamedUntil('/calendar', (route) => route.settings.name == '/');
 ```
 
 기존에는
-메인 -> 캘린더 -> 디테일 -> 캘린더
+
+<img src="https://velog.velcdn.com/images/taebbong/post/902c817e-2e62-47d4-9d50-81da6fc976d9/image.png" width="70%">
 였다면,
 
-메인 -> 캘린더 -> 디테일 -> 캘린더 -> 메인 -> 캘린더
+<img src="https://velog.velcdn.com/images/taebbong/post/45fac4ac-5422-4eff-aa58-2bda3e53916b/image.png" width="70%">
+
 이렇게 말이죠.
 
 이는 뒤로가기 처럼 보이지만 실제로는 새로 페이지에 접근하는 것이기 때문에 새로고침이 되고, 수정사항이 반영되어 보입니다.
 
-기능적으로 문제는 없지만, DetailPage를 보고 돌아올 때마다 새로고침되는 캘린더 페이지는 사용자에게 좋지 못한 경험입니다.
+기능적으로 문제는 없지만, `DetailPage`를 보고 돌아올 때마다 새로고침되는 캘린더 페이지는 사용자에게 좋지 못한 경험입니다.
 
-다음으로 찾은 해결방법은 PopScope 위젯과 Routing Argument을 사용하는 것이었습니다.
-PopScope 위젯을 사용하면, 해당 위젯이 pop될 때의 콜백을 정의해줄 수 있습니다.
-이를 통해 DetailPage를 PopScope로 감싸고, 여기서 pop할 때 수정된 Schedule 객체를 Routing Argument로 전달하여 최종적으로 캘린더 페이지의 Controller를 통해 상태 업데이트를 하는 구조를 작성했습니다.
+다음으로 찾은 해결방법은 `PopScope` 위젯과 `Routing Argument`을 사용하는 것이었습니다.
+`PopScope` 위젯을 사용하면, 해당 위젯이 pop될 때의 콜백을 정의해줄 수 있습니다.
+이를 통해 `DetailPage`를 `PopScope`로 감싸고, 여기서 pop할 때 수정된 `Schedule` 객체를 `Routing Argument`로 전달하여 최종적으로 캘린더 페이지의 `Controller`를 통해 상태 업데이트를 하는 구조를 작성했습니다.
 
-먼저, DetailPage에서 PopScope로 위젯이 pop될 때의 이벤트를 정의합니다.
+먼저, `DetailPage`에서 `PopScope`로 위젯이 pop될 때의 이벤트를 정의합니다.
 
 ```dart
 // DetailPage
@@ -326,8 +416,8 @@ return PopScope(
 );
 ```
 
-DetailPage로 이동하는 버튼에서는 Get.back()으로부터 값을 수신할 수 있도록 처리하며,
-CalendarController를 이용해 상태를 업데이트 합니다.
+`DetailPage`로 이동하는 버튼에서는 `Get.back()`으로부터 값을 수신할 수 있도록 처리하며,
+`CalendarController`를 이용해 상태를 업데이트 합니다.
 
 ```dart
 // ScheduleListTile from CalendarView
@@ -341,7 +431,7 @@ return GestureDetector(
 );
 ```
 
-그리하여 CalendarController에서 수정된 Schedule 상태를 반영하며,
+그리하여 `CalendarController`에서 수정된 `Schedule` 상태를 반영하며,
 
 ```dart
 // CalendarController
@@ -362,7 +452,7 @@ Future<void> onUpdateSchedule({required Schedule updatedSchedule}) async {
 }
 ```
 
-Obx로 상태 변화를 감지하는 위젯이 상태의 변화만을 화면에 적용, 리렌더링합니다.
+`Obx`로 상태 변화를 감지하는 위젯이 상태의 변화만을 화면에 적용, 리렌더링합니다.
 
 ```dart
 // CalendarView
@@ -411,7 +501,7 @@ class CalendarView extends StatelessWidget {
 백그라운드 서비스를 구현하기 위해 알아본 플러터 레벨의 패키지는 WorkManager였습니다.
 WorkManager는 플러터에서 네이티브 백그라운드 서비스를 구현하기 위해 최선의 선택지였습니다만, 현재 패키지의 동작에 이슈가 있었습니다.
 
-![WorkManager Issue]()
+<img src="https://velog.velcdn.com/images/taebbong/post/90f7bb27-5159-45e2-a710-ccf105ccdc2d/image.png" width="70%">
 
 이후에 직접 패키지를 활용해 구현했을 때에도 제대로 동작하지 않았습니다.
 ~~이때 푸시 알림을 때려칠까 고민 많이 했습니다만..~~
@@ -422,7 +512,7 @@ WorkManager는 플러터에서 네이티브 백그라운드 서비스를 구현�
 
 여기서 푸시 알림을 예약하는 기능은 flutter_local_notifications 패키지로 구현했습니다.
 
-![flutter_local_notifications pub]()
+<img src="https://velog.velcdn.com/images/taebbong/post/9dce35b1-d0c1-4bf5-ba36-d9b096cbce2b/image.png" width="70%">
 
 해당 패키지는 각 네이티브 기기의 알림 스케쥴러를 활용할 수 있고, 개발하는 입장에서 백그라운드 서비스 구현 없이 네이티브한 방식으로 푸시 알림 예약 기능을 구현할 수 있었습니다.
 
@@ -661,7 +751,7 @@ void main() {
 
 #### 1. 상태 관리도구를 왜 GetX로 했나?
 
-![원피스 해군 3대장에 BloC, Provider, GetX 로고를 합성한 그림]()
+![원피스 해군 3대장에 BloC, Provider, GetX 로고를 합성한 그림](https://velog.velcdn.com/images/taebbong/post/8a52f1de-8347-4781-9ff0-29ac4b57c929/image.jpg)
 
 플러터에는 상태 관리 도구 3대장이 있습니다. BloC, Provider, GetX가 그것입니다.
 ~~Riverpod도 심심찮게 보이지만, 아직 제게 익숙치는 않습니다.~~
