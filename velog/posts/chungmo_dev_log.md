@@ -38,7 +38,7 @@
 몇번의 프롬프트 테스트를 통해, `GPT API`에게 모바일 청첩장 웹 페이지 리소스를 전달하면,
 100%에 가까운 정확도로 일정 정보를 파싱한다는 것을 확인했습니다.
 
-![](https://velog.velcdn.com/images/taebbong/post/3d0b4d8f-ec2b-492c-9ce3-347eac8c0fd8/image.png)
+![](https://velog.velcdn.com/images/taebbong/post/d535972e-c14b-426c-b486-d19c8b47f183/image.png)
 
 초기에는 직접 모바일 청첩장 링크를 전달했습니다. 여기서 일정 정보를 파싱해달라고 했었죠.
 하지만 `GPT API`는 웹 페이지 접근과 같은 인터렉션에 매우 제한적이었습니다.
@@ -486,20 +486,23 @@ class CalendarView extends StatelessWidget {
 
 이를 통해 수정 후 돌아오더라도 캘린더 위젯이 새로고침되지 않는 자연스러운 UX를 구현할 수 있었습니다.
 
+> 최근 **Flutter Seoul 4월 오픈 스테이지**에서 **실시간 상태 동기화 전략**에 대해 고민해볼 수 있었습니다. 연사님은 `Bloc`, `Stream`을 `usecase`가 구독하게끔 구현했다고 했는데, 역시 실시간 상태 동기화에는 `Stream`이 적절한 듯 하네요. 다음 리팩토링에서는 `Stream`을 적용해보겠습니다.
+
 ### Trouble Shooting #2 : 로컬 푸시 알림 예약 기능 구현
 
 푸시 알림은 보내는 주체가 누구냐에 따라 로컬과 서버로 방식이 나뉘는데, 기본적으로 이 앱에서 스케쥴 데이터는 서버가 아닌 로컬 DB에 저장되기 때문에 당연히 로컬 푸시 알림을 먼저 고려하게 되었습니다.
 
 ![청모 앱에서 푸시 알림 기능 UI]()
 
-제가 기획한 푸시 알림은 모바일 청첩장의 결혼식 일정 전날 11시쯤 "다음날 OOO님의 결혼식이 있어요!"와 같은 푸시 알림을 제공하는 것이었습니다.
+제가 기획한 푸시 알림은 모바일 청첩장의 결혼식 일정 전날 11시쯤 **"다음날 OOO님의 결혼식이 있어요!"**와 같은 푸시 알림을 제공하는 것이었습니다.
+
 당연히 이 푸시 알림은 앱이 종료되어도 발생하여야 합니다.
 
 최초에 생각했던 방식은 매일 11시에 DB를 조회하여 다음날로 저장된 일정을 찾으면 푸시 알림을 제공하는 방식으로 생각했었어요.
-이 방식을 구현하기 위해서는 백그라운드로 돌아가는 "서비스"를 구현해야 하고, 이 서비스가 정해진 시각에 작업을 하도록 예약해야 했습니다.
+이 방식을 구현하기 위해서는 **백그라운드로 돌아가는 "서비스"**를 구현해야 하고, 이 서비스가 정해진 시각에 **작업을 하도록 예약**해야 했습니다.
 
-백그라운드 서비스를 구현하기 위해 알아본 플러터 레벨의 패키지는 WorkManager였습니다.
-WorkManager는 플러터에서 네이티브 백그라운드 서비스를 구현하기 위해 최선의 선택지였습니다만, 현재 패키지의 동작에 이슈가 있었습니다.
+백그라운드 서비스를 구현하기 위해 알아본 플러터 레벨의 패키지는 `WorkManager`였습니다.
+`WorkManager`는 플러터에서 네이티브 백그라운드 서비스를 구현하기 위해 최선의 선택지였습니다만, 패키지를 적용하면 빌드가 안되는 이슈가 있었습니다. 저만 안되는 줄 알았는데, 다들 겪고 있는 문제더라구요..
 
 <img src="https://velog.velcdn.com/images/taebbong/post/90f7bb27-5159-45e2-a710-ccf105ccdc2d/image.png" width="70%">
 
@@ -507,24 +510,24 @@ WorkManager는 플러터에서 네이티브 백그라운드 서비스를 구현�
 ~~이때 푸시 알림을 때려칠까 고민 많이 했습니다만..~~
 다른 방식의 푸시 알림을 고민하게 되었습니다.
 
-이후에 선택한 방식은 새로운 스케쥴이 등록될 때마다 푸시 알림을 보낼 날짜를 계산하여 푸시 알림을 예약하는 것이었습니다.
+이후에 선택한 방식은 **새로운 스케쥴이 등록될 때마다** 푸시 알림을 보낼 날짜를 계산하여 푸시 알림을 **예약**하는 것이었습니다.
 이는 스케쥴 등록 뿐만 아니라 스케쥴 수정 때에도 기존 푸시 알림 예약을 취소하고 새로 날짜를 계산하여 등록하는 방식으로 동일하게 동작시킬 수 있었습니다.
 
-여기서 푸시 알림을 예약하는 기능은 flutter_local_notifications 패키지로 구현했습니다.
+여기서 푸시 알림을 예약하는 기능은 `flutter_local_notifications` 패키지로 구현했습니다.
 
 <img src="https://velog.velcdn.com/images/taebbong/post/9dce35b1-d0c1-4bf5-ba36-d9b096cbce2b/image.png" width="70%">
 
 해당 패키지는 각 네이티브 기기의 알림 스케쥴러를 활용할 수 있고, 개발하는 입장에서 백그라운드 서비스 구현 없이 네이티브한 방식으로 푸시 알림 예약 기능을 구현할 수 있었습니다.
 
-이렇게 하면 백그라운드 서비스를 구현할 필요가 없고, 심지어 앱이 백그라운드에서 매일 같은 시각에(푸시 알림을 보낼만한 스케쥴이 있을지 없을지도 모르는데) 일하는 것을 방지할 수 있습니다.
+이렇게 하면 백그라운드 서비스를 구현할 필요가 없고, 심지어 앱이 백그라운드에서 매일 같은 시각에*(푸시 알림을 보낼만한 스케쥴이 있을지 없을지도 모르는데)* 일하는 것을 방지할 수 있습니다.
 
-푸시 알림 예약 기능은 zonedSchedule()을 활용해 구현할 수 있었습니다.
+푸시 알림 예약 기능은 `zonedSchedule()`을 활용해 구현할 수 있었습니다.
 
 일정을 등록할 때에는 아래와 같은 로직이 실행됩니다.
 
-1. 등록하려는 결혼식 일정의 (날짜 - 1일)의 오전 9시에 푸시 알림을 예약
-2. 만약 결혼식 일정이 내일이라면 당일 오전 9시에 푸시 알림을 예약
-3. 결혼식 일정이 오늘을 포함하여 과거라면 푸시 알림을 예약하지 않음
+> 1. 등록하려는 결혼식 일정의 (날짜 - 1일)의 오전 9시에 푸시 알림을 예약
+> 2. 만약 결혼식 일정이 내일이라면 당일 오전 9시에 푸시 알림을 예약
+> 3. 결혼식 일정이 오늘을 포함하여 과거라면 푸시 알림을 예약하지 않음
 
 이를 확인하여 일정을 등록하는 코드를 다음과 같이 구현했습니다.
 
@@ -557,7 +560,7 @@ Future<void> checkPreviousDayForNotify({
 }
 ```
 
-여기서 addNotifySchedule()은 zonedSchedule()을 활용해 푸시 알림을 예약하는 함수입니다.
+여기서 `addNotifySchedule()`은 `zonedSchedule()`을 활용해 푸시 알림을 예약하는 함수입니다.
 
 ```dart
 Future<void> addNotifySchedule(
@@ -582,11 +585,11 @@ Future<void> addNotifySchedule(
 
 일정을 수정하거나 삭제하면 어떻게 해야할까요?
 
-1. 기존 예약된 푸시 알림을 삭제
-2. 결혼식 날짜가 수정되었다면 새롭게 푸시 알림을 예약
+> 1. 기존 예약된 푸시 알림을 삭제
+> 2. 결혼식 날짜가 수정되었다면 새롭게 푸시 알림을 예약
 
 이 과정에서 기존 예약된 푸시 알림을 삭제하는 기능이 필요했고,
-우리는 Schedule 모델에서 link를 키로 사용하고 있었기 때문에 이를 기반으로 푸시 알림 등록할 때 id를 설정, 찾아서 삭제할 수 있었습니다.
+우리는 `Schedule` 모델에서 `link`를 키로 사용하고 있었기 때문에 이를 기반으로 푸시 알림 등록할 때 `id`를 설정, 찾아서 삭제할 수 있었습니다.
 
 ```dart
 Future<void> cancelNotifySchedule({required String link}) async {
@@ -596,7 +599,7 @@ Future<void> cancelNotifySchedule({required String link}) async {
 ```
 
 또한 앱이 꺼져있는 상태에서 푸시 알림을 눌러 앱을 키면 해당 일정이 나오는 페이지로 이동해야 합니다.
-이 기능은 onDidReceiveNotificationResponse를 설정하여 구현했습니다.
+이 기능은 `onDidReceiveNotificationResponse`를 설정하여 구현했습니다.
 
 ```dart
 Future<void> onDidReceiveNotificationResponse({required String link}) async {
@@ -615,19 +618,19 @@ Future<void> onDidReceiveNotificationResponse({required String link}) async {
 
 푸시 알림은 구현 자체는 간단하지만 이처럼 고려할 시나리오들이 많았습니다.
 또한 네이티브 기능을 사용하는 만큼 각 OS별 권한 설정을 잘 알고 있어야 했습니다.
-이번에 "청모" 프로젝트에서 로컬 푸시 알림 기능을 구현하여 다음에도 비슷한 방식의 구현을 할 수 있겠다는 자신감이 생겼습니다.
+이번에 **"청모"** 프로젝트에서 로컬 푸시 알림 기능을 구현하여 다음에도 비슷한 방식의 구현을 할 수 있겠다는 자신감이 생겼습니다.
 
 ### Trouble Shooting #3 : 테스트를 위한 Mock-Up 레포지토리 만들기
 
-플러터에서 테스트를 할 수 있는 방법은 많이 있지만, 의존성 주입을 함께 고려하여 테스트할 때에는 Mockito 만한게 없었습니다.
-Mockito를 injectable과 함께 사용하면, data sources나 repository 등을 Mock 객체로 만들어서 의존성 주입까지 구현할 수 있습니다.
-그러면 위젯/유닛 단위의 테스트를 할 때 해당 Mock 객체를 주입하여 사용할 수 있는 것입니다.
+플러터에서 테스트를 할 수 있는 방법은 많이 있지만, 의존성 주입을 함께 고려하여 테스트할 때에는 `Mockito` 만한게 없었습니다.
+`Mockito`를 `injectable`과 함께 사용하면, `data sources`나 `repository` 등을 `Mock` 객체로 만들어서 의존성 주입까지 구현할 수 있습니다.
+그러면 위젯/유닛 단위의 테스트를 할 때 해당 `Mock` 객체를 주입하여 사용할 수 있는 것입니다.
 
 "청모" 프로젝트는 규모가 크지 않았기 때문에 UI 부분의 테스트는 크게 필요하지 않다고 느꼈고,
 그래서 데이터 처리 및 푸시 알림 관련된 기능만 테스트하면 되겠다고 생각했습니다.
-따라서 테스트 대상을 data/repository로 설정했고, 해당 repository를 테스트 하기 위해 필요한 의존성들을 mockito를 통해 구성했습니다.
+따라서 테스트 대상을 `data/repository`로 설정했고, 해당 `repository`를 테스트 하기 위해 필요한 의존성들을 `mockito`를 통해 구성했습니다.
 
-먼저 RemoteSource를 구현할 때 @lazySingleton 어노테이션을 설정하여 injectable이 build_runner를 통해 객체를 생성하게끔 하였습니다. LocalSource, NotificationService도 마찬가지로 구현했습니다.
+먼저 `RemoteSource`를 구현할 때 `@lazySingleton` 어노테이션을 설정하여 `injectable`이 `build_runner`를 통해 객체를 생성하게끔 하였습니다. `LocalSource`, `NotificationService`도 마찬가지로 구현했습니다.
 
 ```dart
 @LazySingleton(as: ScheduleRemoteSource)
@@ -658,7 +661,7 @@ class ScheduleRemoteSourceImpl implements ScheduleRemoteSource {
 }
 ```
 
-이후 테스트 코드를 구현할 때 아래와 같이 mocks.dart 파일을 만들어서 mockito, injectable 기반 Mock 객체를 생성하도록 설정했습니다.
+이후 테스트 코드를 구현할 때 아래와 같이 `mocks.dart` 파일을 만들어서 **Mock 객체**를 생성하도록 설정했습니다.
 
 ```dart
 @GenerateMocks([
@@ -669,7 +672,7 @@ class ScheduleRemoteSourceImpl implements ScheduleRemoteSource {
 void main() {}
 ```
 
-build_runner를 통해 코드 생성을 하면, 다음과 같이 mocks.mocks.dart 파일이 생성됩니다.
+`build_runner`를 돌리면, 다음과 같이 `mocks.mocks.dart` 파일이 생성됩니다.
 
 ```dart
 import 'dart:async' as _i5;
@@ -708,7 +711,7 @@ class MockScheduleRemoteSource extends _i1.Mock
 }
 ```
 
-마지막으로 실제 테스트 코드는 Mock 객체를 활용해 작성할 수 있습니다.
+이제 **Mock 객체**를 활용해 테스트 코드를 작성할 수 있습니다.
 
 ```dart
 import '../../mocks/mocks.mocks.dart'; // build_runner로 생성된 파일
@@ -745,7 +748,7 @@ void main() {
 }
 ```
 
-이를 통해 의존성이 복잡하게 구현된 프로젝트에서도 간편하게 Mock 객체를 생성하여 안전한 테스트를 진행할 수 있었습니다.
+이를 통해 의존성이 복잡하게 구현된 프로젝트에서도 간편하게 **Mock 객체**를 생성하여 안전한 테스트를 진행할 수 있었습니다.
 
 ### 그 외 사용한 기법과 근거
 
@@ -753,26 +756,27 @@ void main() {
 
 ![원피스 해군 3대장에 BloC, Provider, GetX 로고를 합성한 그림](https://velog.velcdn.com/images/taebbong/post/8a52f1de-8347-4781-9ff0-29ac4b57c929/image.jpg)
 
-플러터에는 상태 관리 도구 3대장이 있습니다. BloC, Provider, GetX가 그것입니다.
+플러터에는 상태 관리 도구 3대장이 있습니다. `BloC`, `Provider`, `GetX`가 그것입니다.
 ~~Riverpod도 심심찮게 보이지만, 아직 제게 익숙치는 않습니다.~~
+~~커뮤니티 활동을 안해서 몰랐는데, GetX는 좀 많이 배척되고 Riverpod이 들어가는 느낌이네요.~~
 
 각 상태 관리 도구는 개성이 강하고 장단점이 명확한데,
 
-먼저 BloC은 현재, 그리고 앞으로도 Stream을 사용할 계획이 없고, 프로젝트 규모를 고려했을 때 하나의 상태 관리를 위해 너무 많은 파일이 생긴다고 판단해 제외하였습니다.
+먼저 `BloC`은 현재, 그리고 앞으로도 `Stream`을 사용할 계획이 없고, 프로젝트 규모를 고려했을 때 하나의 상태 관리를 위해 너무 많은 파일이 생긴다고 판단해 제외하였습니다.
 
-Provider와 GetX는 둘다 상태 관리를 위해 사용하기에는 간단하고 좋은 방법들입니다.
-둘 중에서는 이후 라우팅이나 다이얼로그, 스낵바 생성에 큰 도움을 받을 수 있는 GetX를 채택하였습니다.
+`Provider`와 `GetX`는 둘다 상태 관리를 위해 사용하기에는 간단하고 좋은 방법들입니다.
+둘 중에서는 이후 라우팅이나 다이얼로그, 스낵바 등 위젯 레벨에서 도움을 받을 수 있는 `GetX`를 채택하였습니다.
 이는 어떻게 보면 상태 관리 도구로써 선택했다기보단 하나의 프레임워크로 선택했다고 보는게 더 적합하겠네요.
-어디까지나 빠른 기능 개발을 목표로 했기에, 라우팅과 UI 영역에서의 GetX의 장점을 놓치기엔 아쉬웠습니다.
+어디까지나 빠른 기능 개발을 목표로 했기에, 라우팅과 UI 영역에서의 `GetX`의 장점을 놓치기엔 아쉬웠습니다.
 
 #### 2. 왜 GetX와 StatefulWidget을 함께 쓰는가?
 
-GetX는 그 자체로 온전한 상태 관리도구로, 전역 및 지역 상태 관리를 충분히 수행할 수 있습니다.
-보통 GetX에서 상태 관리를 할 때에는 MVVM 패턴을 적용하여 view에 해당하는 viewmodel(controller)를 선언하여 사용합니다.
-이때 다뤄지는 상태가 많거나 viewmodel에서 수행해야 하는 작업이 많은 경우 viewmodel이 비대해질 수 있습니다.
+`GetX`는 그 자체로 온전한 상태 관리도구로, 전역 및 지역 상태 관리를 충분히 수행할 수 있습니다.
+보통 `GetX`에서 상태 관리를 할 때에는 **MVVM 패턴**을 적용하여 `view`에 해당하는 `viewmodel(controller)`를 선언하여 사용합니다.
+이때 다뤄지는 상태가 많거나 `viewmodel`에서 수행해야 하는 작업이 많은 경우 `viewmodel`이 비대해질 수 있습니다.
 
-비대한 viewmodel을 관리하는 방법은 여러가지가 있겠지만,
-청모 프로젝트에서는 viewmodel은 비즈니스 로직 관리에 집중하고 UI와 관련된 단순 상태는 StatefulWidget으로 관리하도록 하였습니다.
+비대한 `viewmodel`을 관리하는 방법은 여러가지가 있겠지만,
+청모 프로젝트에서는 `viewmodel`은 비즈니스 로직 관리에 집중하고 UI와 관련된 단순 상태는 `StatefulWidget`으로 관리하도록 하였습니다.
 
 ```dart
 class _DetailPageState extends State<DetailPage> {
@@ -792,12 +796,12 @@ class _DetailPageState extends State<DetailPage> {
 
 #### 3. 의존성 관리는 어떻게?
 
-의존성 주입 및 관리에는 injectable과 get_it을 사용하고 있습니다,
-GetX에는 Get.put, Get.find라는 아주 편리한 의존성 관리 기능이 있습니다.
-그럼에도 injectable과 get_it을 사용한 것은 GetX 의존도를 낮추고, 다른 상태 관리도구와도 사용할 수 있도록 범용성을 확보하기 위함이었습니다.
+의존성 주입 및 관리에는 `injectable`과 `get_it`을 사용하고 있습니다,
+`GetX`에는 `Get.put`, `Get.find`라는 아주 편리한 의존성 관리 기능이 있습니다.
+그럼에도 `injectable`과 `get_it`을 사용한 것은 `GetX` 의존도를 낮추고, 다른 상태 관리도구와도 사용할 수 있도록 범용성을 확보하기 위함이었습니다.
 
-사실 프로젝트에서 injectable과 get_it을 사용한 것은 처음이었는데, 생각보다 사용하기 편리했습니다.
-무엇보다 build_runner 기반의 자동 생성 기능이 편리했습니다.
+사실 프로젝트에서 `injectable`과 `get_it`을 사용한 것은 처음이었는데, 생각보다 사용하기 편리했습니다.
+무엇보다 `build_runner` 기반의 자동 생성 기능이 편리했습니다.
 
 ```dart
 @LazySingleton(as: ScheduleRepository)
@@ -811,10 +815,10 @@ class AnalyzeLinkUsecase {
 }
 ```
 
-위와 같이 의존성 관리가 필요한 대상 클래스에 LazySingleton, injectable과 같은 어노테이션을 넣어 선언합니다.
+위와 같이 의존성 관리가 필요한 대상 클래스에 `LazySingleton`, `injectable`과 같은 어노테이션을 넣어 선언합니다.
 
-> LazySingleton은 해당 객체가 처음 사용될 때 싱글톤 방식으로 객체를 생성하는 방식입니다.
-> injectable은 해당 객체를 사용할 때마다 새로 생성하는 방식입니다.
+> `LazySingleton`은 해당 객체가 처음 사용될 때 싱글톤 방식으로 객체를 생성하는 방식입니다.
+> `injectable`은 해당 객체를 사용할 때마다 새로 생성하는 방식입니다.
 
 ```dart
 import 'package:get_it/get_it.dart';
@@ -828,7 +832,7 @@ final GetIt getIt = GetIt.instance;
 Future<void> configureDependencies() async => getIt.init();
 ```
 
-di.dart 파일을 위처럼 선언하고 build_runner를 실행하면 아래와 같이 di.config.dart 파일이 자동으로 생성됩니다.
+`di.dart` 파일을 위처럼 선언하고 `build_runner`를 실행하면 아래와 같이 `di.config.dart` 파일이 자동으로 생성됩니다.
 
 ```dart
 import 'package:get_it/get_it.dart' as _i174;
@@ -865,13 +869,13 @@ extension GetItInjectableX on _i174.GetIt {
 }
 ```
 
-이후 필요한 의존성을 주입시켜 사용하고 싶을 땐 getIt 객체를 통해 접근하면 됩니다.
+이후 필요한 의존성을 주입시켜 사용하고 싶을 땐 `getIt` 객체를 통해 접근하면 됩니다.
 
 ```dart
 final ListSchedulesByDateUsecase listSchedulesByDateUsecase = getIt<ListSchedulesByDateUsecase>();
 ```
 
-### 배포 완료 : 앞으로의 계획은?
+### 배포 완료 : 다음 버전은?
 
 ![데모 영상]()
 
@@ -880,9 +884,22 @@ final ListSchedulesByDateUsecase listSchedulesByDateUsecase = getIt<ListSchedule
 
 다음 버전에 넣고 싶은 기능은 다음과 같은데,
 
-1. showcaseview 패키지 기반 온보딩 프로세스 추가
-2. 메인 페이지 UI에 일정 데이터 추가로 보여주기
-3. 계좌 정보 추가
-4. 주소 복사 버튼 추가
+> 1. `showcaseview` 패키지 기반 온보딩 프로세스 추가
+> 2. 메인 페이지 UI에 일정 데이터 추가로 보여주기
+> 3. 계좌 정보 추가
+> 4. 주소 복사 버튼 추가
 
 비교적 간단한 기능들 위주로 다음 버전을 준비하려고 합니다.
+
+### 개선할 점, 마치며
+
+한번에 완벽할 수 없다는 것은 알지만, 그럼에도 볼 때마다 아쉬운 점이 생기는 것 같습니다.
+최근 커뮤니티나 세미나를 통해 새롭게 알아가는 내용이 있는데, 이런 부분들을 적용하면 좀 더 좋은 프로젝트가 되겠다 느껴집니다.
+
+> 1. `Isolate` 적용하여 성능 개선
+> 2. `Stream` 적용하여 실시간 상태 관리, 구독
+> 3. 적극적인 객체지향 개념 적용, 리팩토링
+
+<img src="https://velog.velcdn.com/images/taebbong/post/98ce493e-05a3-4cc4-8638-01c00c451c95/image.png" width="70%">
+
+여기까지 제 작고 소중한 **"청모"** 프로젝트였습니다. 지금은 많이 부족하지만 좀 더 시간이 지난 후, 더 멋진 프로젝트가 되어 새롭게 얻은 경험들을 공유하겠습니다. 긴 글 읽어주셔서 감사합니다!
