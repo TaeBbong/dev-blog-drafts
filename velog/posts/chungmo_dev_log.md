@@ -28,7 +28,6 @@
 
 서로 다른 형태로 구성된 모바일 청첩장의 내용을 **"알아서"** 파싱하여 일정 정보를 저장하는 것이 이 프로젝트에서 해결하고자 했던 가장 중요한 문제였습니다.
 
-
 ### 개념 증명 : GPT API가 "알아서" 모바일 청첩장을 파싱할 수 있을까?
 
 ![](https://velog.velcdn.com/images/taebbong/post/50e523f5-a499-4183-ace2-702d2727d6d5/image.png)
@@ -52,15 +51,15 @@ def parse_voucher_handler(req: https_fn.Request) -> https_fn.Response:
         OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
         voucher = data.get("link")
         parsed_result = HTML
-        
+
         query = parsed_result + "\n\n"
         query += '''
         Extract the required wedding data from the given text and return it in pure JSON format, without any additional text or snippet tags. Ensure that the output follows this exact JSON structure:
 
         {
             "thumbnail": "",
-            "groom": "", 
-            "bride": "", 
+            "groom": "",
+            "bride": "",
             "datetime": "", // ex: 2025-04-26T14:00:00
             "location": ""
         }
@@ -268,6 +267,8 @@ class CountSchedulesUsecase {
 
 > `Entity`는 사용자에게 제공되는 데이터
 > `Model`은 DB나 서버에서 처리되는 데이터를 구현한 것입니다.
+> `Entity`는 사용자에게 제공되는 데이터
+> `Model`은 DB나 서버에서 처리되는 데이터를 구현한 것입니다.
 
 개념적으로 다르지만 사실 하나만 써도 구현하는데 큰 문제는 없습니다.
 그럼에도 패턴에서 자주 사용되는 이유가 있는데, 이 프로젝트에서도 그런 사례가 있었습니다.
@@ -332,7 +333,9 @@ import '../models/schedule/schedule_model.dart';
 import '../../domain/entities/schedule.dart';
 
 /// Schedule(entity, domain) <-> ScheduleModel(model, data) 변환
+/// Schedule(entity, domain) <-> ScheduleModel(model, data) 변환
 class ScheduleMapper {
+  /// Schedule(entity, domain) -> ScheduleModel(model, data)
   /// Schedule(entity, domain) -> ScheduleModel(model, data)
   static ScheduleModel toModel(Schedule entity) {
     return ScheduleModel(
@@ -345,6 +348,7 @@ class ScheduleMapper {
     );
   }
 
+  /// ScheduleModel(model, data) -> Schedule(entity, domain)
   /// ScheduleModel(model, data) -> Schedule(entity, domain)
   static Schedule toEntity(ScheduleModel model) {
     return Schedule(
@@ -386,17 +390,25 @@ Get.offNamedUntil('/calendar', (route) => route.settings.name == '/');
 ```
 
 기존에는 이런 구조였는데,
+기존에는 이런 구조였는데,
 
 <p align="center">
+<p align="center">
 <img src="https://velog.velcdn.com/images/taebbong/post/902c817e-2e62-47d4-9d50-81da6fc976d9/image.png" width="70%">
+</p>
 </p>
 
 아래와 같이 바꿔봤습니다.
 
 <p align="center">
+아래와 같이 바꿔봤습니다.
+
+<p align="center">
 <img src="https://velog.velcdn.com/images/taebbong/post/45fac4ac-5422-4eff-aa58-2bda3e53916b/image.png" width="70%">
 </p>
+</p>
 
+이는 뒤로가기 처럼 보이지만 실제로는 새로 페이지에 접근하는 것이기 때문에 새로고침이 되고, 수정사항이 반영되어 보입니다. 기능적으로 문제는 없지만, `DetailPage`를 보고 돌아올 때마다 새로고침되는 캘린더 페이지는 사용자에게 좋지 못한 경험입니다.
 이는 뒤로가기 처럼 보이지만 실제로는 새로 페이지에 접근하는 것이기 때문에 새로고침이 되고, 수정사항이 반영되어 보입니다. 기능적으로 문제는 없지만, `DetailPage`를 보고 돌아올 때마다 새로고침되는 캘린더 페이지는 사용자에게 좋지 못한 경험입니다.
 
 다음으로 찾은 해결방법은 `PopScope` 위젯과 `Routing Argument`을 사용하는 것이었습니다.
@@ -438,9 +450,11 @@ return GestureDetector(
 // CalendarController
 Future<void> onUpdateSchedule({required Schedule updatedSchedule}) async {
   // Step 1. focusedDay, selectedDay 업데이트
+  // Step 1. focusedDay, selectedDay 업데이트
   focusedDay.value = updatedSchedule.date;
   selectedDay.value = updatedSchedule.date;
 
+  // Step 2. `allSchedules`를 link 기준으로 업데이트
   // Step 2. `allSchedules`를 link 기준으로 업데이트
   final currentList = allSchedules.value ?? [];
   final updatedList = currentList.map((s) {
@@ -496,6 +510,9 @@ class CalendarView extends StatelessWidget {
 <p align="center">
 <img src="https://velog.velcdn.com/images/taebbong/post/5ef170f1-7dcb-45a8-a994-c6213e6095b8/image.png" width="50%">
 </p>
+<p align="center">
+<img src="https://velog.velcdn.com/images/taebbong/post/5ef170f1-7dcb-45a8-a994-c6213e6095b8/image.png" width="50%">
+</p>
 
 제가 기획한 푸시 알림은 모바일 청첩장의 결혼식 일정 전날 11시쯤 **"다음날 OOO님의 결혼식이 있어요!"**와 같은 푸시 알림을 제공하는 것이었습니다.
 
@@ -508,7 +525,9 @@ class CalendarView extends StatelessWidget {
 `WorkManager`는 플러터에서 네이티브 백그라운드 서비스를 구현하기 위해 최선의 선택지였습니다만, 패키지를 적용하면 빌드가 안되는 이슈가 있었습니다. 저만 안되는 줄 알았는데, 다들 겪고 있는 문제더라구요..
 
 <p align="center">
+<p align="center">
 <img src="https://velog.velcdn.com/images/taebbong/post/90f7bb27-5159-45e2-a710-ccf105ccdc2d/image.png" width="70%">
+</p>
 </p>
 
 버전을 여러번 바꿔가며 해당 이슈를 해결해도 백그라운드 작업이 제대로 동작하지 않았습니다.
@@ -521,12 +540,14 @@ class CalendarView extends StatelessWidget {
 여기서 푸시 알림을 예약하는 기능은 `flutter_local_notifications` 패키지로 구현했습니다.
 
 <p align="center">
+<p align="center">
 <img src="https://velog.velcdn.com/images/taebbong/post/9dce35b1-d0c1-4bf5-ba36-d9b096cbce2b/image.png" width="70%">
+</p>
 </p>
 
 해당 패키지는 각 네이티브 기기의 알림 스케쥴러를 활용할 수 있고, 개발하는 입장에서 백그라운드 서비스 구현 없이 네이티브한 방식으로 푸시 알림 예약 기능을 구현할 수 있었습니다.
 
-이렇게 하면 백그라운드 서비스를 구현할 필요가 없고, 심지어 앱이 백그라운드에서 매일 같은 시각에_(푸시 알림을 보낼만한 스케쥴이 있을지 없을지도 모르는데)_ 일하는 것을 방지할 수 있습니다.
+이렇게 하면 백그라운드 서비스를 구현할 필요가 없고, 심지어 앱이 백그라운드에서 매일 같은 시각에*(푸시 알림을 보낼만한 스케쥴이 있을지 없을지도 모르는데)* 일하는 것을 방지할 수 있습니다.
 
 푸시 알림 예약 기능은 `zonedSchedule()`을 활용해 구현할 수 있었습니다.
 
@@ -646,6 +667,7 @@ class ScheduleRemoteSourceImpl implements ScheduleRemoteSource {
 
   ScheduleRemoteSourceImpl();
 
+  /// Firebase functions API를 호출하여 JSON type response를 받기
   /// Firebase functions API를 호출하여 JSON type response를 받기
   @override
   Future<ScheduleModel> fetchScheduleFromServer(String link) async {
@@ -878,6 +900,7 @@ final ListSchedulesByDateUsecase listSchedulesByDateUsecase = getIt<ListSchedule
 ### 배포 완료 : 다음 버전은?
 
 <p align="center"><img src="https://velog.velcdn.com/images/taebbong/post/a7cdce3d-ffae-476f-b740-9d4168bdd187/image.gif" width="40%"></p>
+<p align="center"><img src="https://velog.velcdn.com/images/taebbong/post/a7cdce3d-ffae-476f-b740-9d4168bdd187/image.gif" width="40%"></p>
 
 아주 기본적인 기능만 구현한 현재 버전 1.0.0은 플레이스토어에 무사히 배포되었습니다.
 배포할 때 쯤 맥북을 교체하느라 앱스토어 배포는 놓쳤는데, 다음 버전에 함께 배포하려고 합니다.
@@ -900,6 +923,7 @@ final ListSchedulesByDateUsecase listSchedulesByDateUsecase = getIt<ListSchedule
 > 2. `Stream` 적용하여 실시간 상태 관리, 구독
 > 3. 적극적인 객체지향 개념 적용, 리팩토링
 
+<p align="center"><img src="https://velog.velcdn.com/images/taebbong/post/98ce493e-05a3-4cc4-8638-01c00c451c95/image.png" width="80%"></p>
 <p align="center"><img src="https://velog.velcdn.com/images/taebbong/post/98ce493e-05a3-4cc4-8638-01c00c451c95/image.png" width="80%"></p>
 
 여기까지 제 작고 소중한 **"청모"** 프로젝트였습니다. 지금은 많이 부족하지만 좀 더 시간이 지난 후, 더 멋진 프로젝트가 되어 새롭게 얻은 경험들을 공유하겠습니다. 긴 글 읽어주셔서 감사합니다!
