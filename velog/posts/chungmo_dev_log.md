@@ -1,12 +1,8 @@
 ### 들어가며
 
-<img src="https://velog.velcdn.com/images/taebbong/post/232980df-0818-436a-be4b-be86d5d2c13e/image.png" width="100%">
-
 모바일 청첩장 자동 저장 앱 **청모**를 개발하면서 고민하고 문제를 해결했던 과정을 공유합니다.
 
 ### 문제 인식 : 청모는 어떻게 탄생했는가?
-
-<img src="https://velog.velcdn.com/images/taebbong/post/3b0cd276-4625-402b-8bb1-0db8f3cc8c7b/image.png" width="30%">
 
 20대 후반이 되어가면서 주변에 결혼하는 분들이 많이 있습니다. 종이 청첩장도 좋지만, 받는 입장에선 일정을 확인할 때 보통 모바일 청첩장을 더 많이 보게 되더라구요.
 청첩장을 받고나서 캘린더에 일정과 장소를 그때그때 저장하면 편하겠지만, 보통 저장하지 않고 매번 카톡 채팅방에 들어가서 모바일 청첩장을 찾아 일정을 확인하는 일이 참 많았습니다...
@@ -26,9 +22,12 @@
 > 1. 모바일 청첩장 링크를 입력하여 저장, 모아서 볼 수 있다.
 > 2. 모바일 청첩장을 "알아서" 파싱하여, 일정/장소 정보를 캘린더에 저장한다.
 
-첫번째 문제에 대한 해결은 비교적 간단하고 뻔합니다. 모바일 청첩장 전용 메모앱을 만들겠다는 것이죠.
-이 자체로도 누군가에겐 의미가 있을 수 있으나, 문제를 완전히 해결했다고 보기 어렵습니다.
-모바일 청첩장의 내용을 **"알아서"** 파싱하여 일정 정보를 저장하는 것이 **"청모"**의 **"킥"**이라고 할 수 있겠습니다.
+이 중 두번째, 모바일 청첩장 내용 파싱을 자동화하는 것이 더 어려운 문제라고 판단했습니다. 모바일 청첩장은 수 많은 제공 업체가 있으며, 이들이 제공하는 웹 페이지는 전부 다른 형태이기 때문입니다. 사용하는 태그, 클래스 이름, 페이지 구조가 모두 달라 전통적인 방식의 웹 크롤러로는 자동화를 하는게 불가능하다고 결론 지었습니다.
+
+![](https://velog.velcdn.com/images/taebbong/post/d60733f6-556e-4895-baf6-070c5cdd93da/image.PNG)
+
+서로 다른 형태로 구성된 모바일 청첩장의 내용을 **"알아서"** 파싱하여 일정 정보를 저장하는 것이 이 프로젝트에서 해결하고자 했던 가장 중요한 문제였습니다.
+
 
 ### 개념 증명 : GPT API가 "알아서" 모바일 청첩장을 파싱할 수 있을까?
 
@@ -53,15 +52,15 @@ def parse_voucher_handler(req: https_fn.Request) -> https_fn.Response:
         OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
         voucher = data.get("link")
         parsed_result = HTML
-
+        
         query = parsed_result + "\n\n"
         query += '''
         Extract the required wedding data from the given text and return it in pure JSON format, without any additional text or snippet tags. Ensure that the output follows this exact JSON structure:
 
         {
             "thumbnail": "",
-            "groom": "",
-            "bride": "",
+            "groom": "", 
+            "bride": "", 
             "datetime": "", // ex: 2025-04-26T14:00:00
             "location": ""
         }
@@ -267,7 +266,8 @@ class CountSchedulesUsecase {
 
 **data/model**과 **domain/entity**는 그 코드가 유사하지만, 개념적으로 지향하는 바가 완전히 다릅니다.
 
-`Entity`는 사용자에게 제공되는 데이터, 모델은 DB나 서버에서 처리되는 데이터를 구현한 것입니다.
+> `Entity`는 사용자에게 제공되는 데이터
+> `Model`은 DB나 서버에서 처리되는 데이터를 구현한 것입니다.
 
 개념적으로 다르지만 사실 하나만 써도 구현하는데 큰 문제는 없습니다.
 그럼에도 패턴에서 자주 사용되는 이유가 있는데, 이 프로젝트에서도 그런 사례가 있었습니다.
@@ -331,9 +331,9 @@ class Schedule with _$Schedule {
 import '../models/schedule/schedule_model.dart';
 import '../../domain/entities/schedule.dart';
 
-/// ScheduleMapper class converts Schedule(entity, domain) <-> ScheduleModel(model, data)
+/// Schedule(entity, domain) <-> ScheduleModel(model, data) 변환
 class ScheduleMapper {
-  /// Converts Schedule(entity, domain) -> ScheduleModel(model, data)
+  /// Schedule(entity, domain) -> ScheduleModel(model, data)
   static ScheduleModel toModel(Schedule entity) {
     return ScheduleModel(
       link: entity.link,
@@ -345,7 +345,7 @@ class ScheduleMapper {
     );
   }
 
-  /// Converts ScheduleModel(model, data) -> Schedule(entity, domain)
+  /// ScheduleModel(model, data) -> Schedule(entity, domain)
   static Schedule toEntity(ScheduleModel model) {
     return Schedule(
       link: model.link,
@@ -365,7 +365,7 @@ class ScheduleMapper {
 > 2. UI와 DB 등 쓰이는 여러곳에서 데이터를 변환하지 않고 Mapper를 통해 데이터 변환 일관성 유지
 > 3. 추후 DB, 서버 등 데이터 소스를 교체할 때 엔티티에 의존하는 UI, 비즈니스 로직은 유지할 수 있음(모델과 레포지토리만 수정하면 됨!)
 
-### Trouble Shooting #1 : 일정 수정 후 달력으로 돌아왔을 때 상태 변화 적용 시키기
+### Trouble Shooting #1 : Get.back() 후 상태 동기화하기
 
 모바일 청첩장을 파싱하여 등록한 일정을 달력에 보여주게끔 구현했습니다.
 플러터에서는 `table_calendar`라는 위젯을 주로 사용합니다.
@@ -385,18 +385,19 @@ class ScheduleMapper {
 Get.offNamedUntil('/calendar', (route) => route.settings.name == '/');
 ```
 
-기존에는
+기존에는 이런 구조였는데,
 
+<p align="center">
 <img src="https://velog.velcdn.com/images/taebbong/post/902c817e-2e62-47d4-9d50-81da6fc976d9/image.png" width="70%">
-였다면,
+</p>
 
+아래와 같이 바꿔봤습니다.
+
+<p align="center">
 <img src="https://velog.velcdn.com/images/taebbong/post/45fac4ac-5422-4eff-aa58-2bda3e53916b/image.png" width="70%">
+</p>
 
-이렇게 말이죠.
-
-이는 뒤로가기 처럼 보이지만 실제로는 새로 페이지에 접근하는 것이기 때문에 새로고침이 되고, 수정사항이 반영되어 보입니다.
-
-기능적으로 문제는 없지만, `DetailPage`를 보고 돌아올 때마다 새로고침되는 캘린더 페이지는 사용자에게 좋지 못한 경험입니다.
+이는 뒤로가기 처럼 보이지만 실제로는 새로 페이지에 접근하는 것이기 때문에 새로고침이 되고, 수정사항이 반영되어 보입니다. 기능적으로 문제는 없지만, `DetailPage`를 보고 돌아올 때마다 새로고침되는 캘린더 페이지는 사용자에게 좋지 못한 경험입니다.
 
 다음으로 찾은 해결방법은 `PopScope` 위젯과 `Routing Argument`을 사용하는 것이었습니다.
 `PopScope` 위젯을 사용하면, 해당 위젯이 pop될 때의 콜백을 정의해줄 수 있습니다.
@@ -436,11 +437,11 @@ return GestureDetector(
 ```dart
 // CalendarController
 Future<void> onUpdateSchedule({required Schedule updatedSchedule}) async {
-  // Step 1. Update focusedDay, selectedDay for CalendarView.
+  // Step 1. focusedDay, selectedDay 업데이트
   focusedDay.value = updatedSchedule.date;
   selectedDay.value = updatedSchedule.date;
 
-  // Step 2. Update `allSchedules` by key `link`.
+  // Step 2. `allSchedules`를 link 기준으로 업데이트
   final currentList = allSchedules.value ?? [];
   final updatedList = currentList.map((s) {
     if (s.link == updatedSchedule.link) {
@@ -492,7 +493,9 @@ class CalendarView extends StatelessWidget {
 
 푸시 알림은 보내는 주체가 누구냐에 따라 로컬과 서버로 방식이 나뉘는데, 기본적으로 이 앱에서 스케쥴 데이터는 서버가 아닌 로컬 DB에 저장되기 때문에 당연히 로컬 푸시 알림을 먼저 고려하게 되었습니다.
 
-![청모 앱에서 푸시 알림 기능 UI]()
+<p align="center">
+<img src="https://velog.velcdn.com/images/taebbong/post/5ef170f1-7dcb-45a8-a994-c6213e6095b8/image.png" width="50%">
+</p>
 
 제가 기획한 푸시 알림은 모바일 청첩장의 결혼식 일정 전날 11시쯤 **"다음날 OOO님의 결혼식이 있어요!"**와 같은 푸시 알림을 제공하는 것이었습니다.
 
@@ -504,22 +507,26 @@ class CalendarView extends StatelessWidget {
 백그라운드 서비스를 구현하기 위해 알아본 플러터 레벨의 패키지는 `WorkManager`였습니다.
 `WorkManager`는 플러터에서 네이티브 백그라운드 서비스를 구현하기 위해 최선의 선택지였습니다만, 패키지를 적용하면 빌드가 안되는 이슈가 있었습니다. 저만 안되는 줄 알았는데, 다들 겪고 있는 문제더라구요..
 
+<p align="center">
 <img src="https://velog.velcdn.com/images/taebbong/post/90f7bb27-5159-45e2-a710-ccf105ccdc2d/image.png" width="70%">
+</p>
 
-이후에 직접 패키지를 활용해 구현했을 때에도 제대로 동작하지 않았습니다.
+버전을 여러번 바꿔가며 해당 이슈를 해결해도 백그라운드 작업이 제대로 동작하지 않았습니다.
 ~~이때 푸시 알림을 때려칠까 고민 많이 했습니다만..~~
 다른 방식의 푸시 알림을 고민하게 되었습니다.
 
-이후에 선택한 방식은 **새로운 스케쥴이 등록될 때마다** 푸시 알림을 보낼 날짜를 계산하여 푸시 알림을 **예약**하는 것이었습니다.
+다음에 선택한 방식은 **새로운 스케쥴이 등록될 때마다** 푸시 알림을 보낼 날짜를 계산하여 푸시 알림을 **예약**하는 것이었습니다.
 이는 스케쥴 등록 뿐만 아니라 스케쥴 수정 때에도 기존 푸시 알림 예약을 취소하고 새로 날짜를 계산하여 등록하는 방식으로 동일하게 동작시킬 수 있었습니다.
 
 여기서 푸시 알림을 예약하는 기능은 `flutter_local_notifications` 패키지로 구현했습니다.
 
+<p align="center">
 <img src="https://velog.velcdn.com/images/taebbong/post/9dce35b1-d0c1-4bf5-ba36-d9b096cbce2b/image.png" width="70%">
+</p>
 
 해당 패키지는 각 네이티브 기기의 알림 스케쥴러를 활용할 수 있고, 개발하는 입장에서 백그라운드 서비스 구현 없이 네이티브한 방식으로 푸시 알림 예약 기능을 구현할 수 있었습니다.
 
-이렇게 하면 백그라운드 서비스를 구현할 필요가 없고, 심지어 앱이 백그라운드에서 매일 같은 시각에*(푸시 알림을 보낼만한 스케쥴이 있을지 없을지도 모르는데)* 일하는 것을 방지할 수 있습니다.
+이렇게 하면 백그라운드 서비스를 구현할 필요가 없고, 심지어 앱이 백그라운드에서 매일 같은 시각에_(푸시 알림을 보낼만한 스케쥴이 있을지 없을지도 모르는데)_ 일하는 것을 방지할 수 있습니다.
 
 푸시 알림 예약 기능은 `zonedSchedule()`을 활용해 구현할 수 있었습니다.
 
@@ -639,11 +646,7 @@ class ScheduleRemoteSourceImpl implements ScheduleRemoteSource {
 
   ScheduleRemoteSourceImpl();
 
-  /// Fetch analyzed data in `json` type from Firebase functions API.
-  ///
-  /// If result, returns `ScheduleModel` type data.
-  ///
-  /// If not, throw error.
+  /// Firebase functions API를 호출하여 JSON type response를 받기
   @override
   Future<ScheduleModel> fetchScheduleFromServer(String link) async {
     try {
@@ -733,14 +736,11 @@ void main() {
   group('analyzeLink', () {
     test('should return Schedule when remote source call is successful',
         () async {
-      // Given
       when(mockRemoteSource.fetchScheduleFromServer(any))
           .thenAnswer((_) async => tScheduleModel);
 
-      // When
       final result = await repository.analyzeLink(tUrl);
 
-      // Then
       expect(result, tSchedule);
       verify(mockRemoteSource.fetchScheduleFromServer(tUrl)).called(1);
     });
@@ -877,7 +877,7 @@ final ListSchedulesByDateUsecase listSchedulesByDateUsecase = getIt<ListSchedule
 
 ### 배포 완료 : 다음 버전은?
 
-![데모 영상]()
+<p align="center"><img src="https://velog.velcdn.com/images/taebbong/post/a7cdce3d-ffae-476f-b740-9d4168bdd187/image.gif" width="40%"></p>
 
 아주 기본적인 기능만 구현한 현재 버전 1.0.0은 플레이스토어에 무사히 배포되었습니다.
 배포할 때 쯤 맥북을 교체하느라 앱스토어 배포는 놓쳤는데, 다음 버전에 함께 배포하려고 합니다.
@@ -900,6 +900,6 @@ final ListSchedulesByDateUsecase listSchedulesByDateUsecase = getIt<ListSchedule
 > 2. `Stream` 적용하여 실시간 상태 관리, 구독
 > 3. 적극적인 객체지향 개념 적용, 리팩토링
 
-<img src="https://velog.velcdn.com/images/taebbong/post/98ce493e-05a3-4cc4-8638-01c00c451c95/image.png" width="70%">
+<p align="center"><img src="https://velog.velcdn.com/images/taebbong/post/98ce493e-05a3-4cc4-8638-01c00c451c95/image.png" width="80%"></p>
 
 여기까지 제 작고 소중한 **"청모"** 프로젝트였습니다. 지금은 많이 부족하지만 좀 더 시간이 지난 후, 더 멋진 프로젝트가 되어 새롭게 얻은 경험들을 공유하겠습니다. 긴 글 읽어주셔서 감사합니다!
