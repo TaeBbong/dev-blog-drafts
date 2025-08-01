@@ -80,16 +80,63 @@ Payload/MyApp.app/
 
 #### Dart - JIT 컴파일
 
-두번째는 **JIT(Just in Time)** 컴파일입니다. 여기서는 **Frontend Server** 프로세스가 Dart 코드를 **Kernel AST**로 변환하며, 이는 실행할 기기로 바로 전송되며 기기 내에서 **스크립트 스냅샷(`snapshot_blob.bin`)** 형태의 바이너리로 저장됩니다.
-런타임에는 Dart VM JIT 컴파일러가 함수 호출 시점에 해당 바이트코드를 기계어로 변환합니다.
+두번째는 **JIT(Just in Time)** 컴파일입니다. 여기서도 마찬가지로 **CFE**가 Dart 코드를 **Kernel IR**로 변환하는 1차 중간단계를 거칩니다. AOT 컴파일과 다른 점은, 이렇게 만들어진 중간 결과물이 그대로 실행할 기기로 바로 전송되며 기기 내에서 **스크립트 스냅샷(`snapshot_blob.bin`)** 형태의 바이너리로 저장된다는 것입니다. 앞선 스냅샷들과 달리 중간 결과물이 담긴 스냅샷을 스크립트 스냅샷이라고 합니다.
+중간단계 결과물이 앱에 그대로 전송되는 방식이므로, 기기에서 실행 가능한 기계어 코드로 변환하는 기능이 AOT 처럼 개발자 PC에서 진행되는게 아니라 실행 기기에서 진행됩니다. 따라서 이를 위한 Dart VM JIT 컴파일로도 앱에 함께 패키징 되어야 합니다.
+AOT 컴파일에서는 이미 기계어로 변환된 코드 스냅샷이 앱으로 들어가기 때문에 경량화된 precompiled runtime만 앱에 함께 넣으면 실행하는데 충분했지만, JIT 컴파일에서는 함수 호출 시점에 기계어로 변환하기 위한 의존성도 앱에 포함됩니다.
+뿐만 아니라 디버깅 단계에서 동작하기 위한 다양한 디버깅 도구도 포함되어야 합니다. 그러다보니 AOT 컴파일 단계를 거친 릴리즈 용 앱보다 용량이 더 커지게 되죠.
 
-그러면 아무래도 AOT 컴파일에서 만들어진 최적화된 바이너리보다 무겁겠죠? 뿐만 아니라 런타임에서 실행하기 위한 구성 요소들도 더 많습니다. 각종 디버깅 정보와 도구, 런타임을 포함하여 **앱 크기는 AOT 컴파일 거친 앱보다 더 크게** 됩니다.
+JIT 컴파일 방식으로 빌드된 앱은 다음 구조를 갖습니다.
+
+```bash
+## Android
+lib/arm64-v8a/
+ ├─ libflutter.so            # Engine + full Dart VM (JIT, DevTools)
+ ├─ libplugins_xyz.so        # 네이티브 플러그인 so
+assets/flutter_assets/
+ ├─ kernel_blob.bin          # 전체 Dart 코드의 Kernel IR
+ ├─ vm_snapshot_data         # 자리표시자 stub (몇 KB)
+ ├─ vm_snapshot_instr        # ─〃─
+ ├─ isolate_snapshot_data    # ─〃─
+ ├─ isolate_snapshot_instr   # ─〃─
+ ├─ icudtl.dat               # 국제화 데이터
+ ├─ AssetManifest.json
+ ├─ FontManifest.json
+ └─ ...                      # 이미지·폰트 등 앱 자산
+classes.dex                  # Flutter bootstrap Java 코드
+AndroidManifest.xml
+resources.arsc
+res/ ...
+```
+
+```bash
+## iOS
+Payload/Runner.app/
+ ├─ Frameworks/
+ │   ├─ Flutter.framework/Flutter     # Engine + full Dart VM (JIT)
+ │   └─ App.framework/
+ │       └─ App                       # Debug stub (엔트리 포인트만)
+ ├─ flutter_assets/
+ │   ├─ kernel_blob.bin               # Kernel IR
+ │   ├─ vm_snapshot_data              # 자리표시자 stub
+ │   ├─ vm_snapshot_instr             # ─〃─
+ │   ├─ isolate_snapshot_data         # ─〃─
+ │   ├─ isolate_snapshot_instr        # ─〃─
+ │   ├─ icudtl.dat
+ │   ├─ AssetManifest.json
+ │   ├─ FontManifest.json
+ │   └─ ...                           # 이미지·폰트 등 자산
+ ├─ PlugIns/
+ │   └─ *.framework / *.dylib         # 네이티브 플러그인 코드
+ ├─ Info.plist
+ ├─ AppIcon60x60@2x.png …
+ └─ _CodeSignature/ …
+```
 
 대신 그 덕분에 **Hot Reload**가 가능해집니다.
-개발자가 디버깅 과정에서 앱을 실행시켰다고 가정해봅시다. 그렇다면 개발자 PC에는 Frontend Server 프로세스가 구동됩니다.
-실행 기기에서는 앱 파일과 함께 패키징된 **Flutter Engine, Dart VM(JIT) 및 디버그 도구**가 함께 동작합니다.
+개발자가 디버깅 과정에서 앱을 실행시켰다고 가정해봅시다. 그렇다면 개발자 PC에는 CFE 프로세스가 구동됩니다.
+실행 기기에서는 앱 파일과 함께 패키징된 **Flutter Engine, Dart VM JIT 컴파일러 및 디버그 도구**가 동작합니다.
 이때 개발자가 코드를 수정하고 저장, Hot Reload를 실행시키면 IDE는 바뀐 `.dart` 파일을 개발자 PC의 flutter-tools에 전달합니다.
-이를 통해 Frontend Server 프로세스는 변화한 코드에 대해 부분적인 컴파일을 즉시 실시합니다. 이 과정은 수 ms밖에 걸리지 않습니다.
+이를 통해 CFE 프로세스는 변화한 코드에 대해 부분적인 컴파일을 즉시 실시합니다. 이 과정은 수 ms밖에 걸리지 않습니다.
 그렇게 컴파일된 **Kernel IR** 파일은 실행 기기에서 돌고 있는 Dart VM으로 전송됩니다.
 실행 기기 내의 Dart VM은 필요한 클래스 부분들을 교체하고 필요한 함수만 즉시 JIT 재컴파일을 실시합니다.
 이와 같은 과정을 거쳐 아주 작은 시간 내에 변화한 부분만 재컴파일 과정을 거쳐 실행 기기에 전달되는 것입니다.
@@ -97,22 +144,19 @@ Payload/MyApp.app/
 그렇다면 **Hot Restart**는 어떨까요?
 Hot Restart를 실행시키면 실행 기기에서 돌고 있던 main 함수를 비롯한 Isolate 프로세스들이 종료됩니다.
 여러 객체들을 포함한 말그대로 State들이 전부 지워지게 되는 것입니다.
-그와 동시에 개발자 PC의 Frontend Server는 부분적으로 컴파일했던 Hot Reload와 달리, 전체 Kernel IR을 컴파일합니다.
+그와 동시에 개발자 PC의 CFE는 부분적으로 컴파일했던 Hot Reload와 달리, 전체 Kernel IR을 컴파일합니다.
 컴파일된 Kernel IR 파일은 실행 기기의 Dart VM으로 전달됩니다. 이때 다시 실행하기 위해 새로운 Isolate 프로세스를 시작합니다.
 이미 Dart VM, Flutter engine은 무언가를 실행시킬 준비가 되어있기 때문에 앱을 아예 새로 시작하는 것보다 한참 빠르게 동작합니다.
 
 자세한 단계별 설명은 다음과 같습니다.
 
-| 단계                     | 호스트(개발자 PC)                                                                                                                                 | 디바이스(에뮬레이터·실기기)                                                       |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| **1. 빌드 명령**         | `flutter run` (Debug) 실행                                                                                                                        | —                                                                                 |
-| **2. 프론트엔드 컴파일** | `frontend_server`가 모든 Dart 파일을 **Kernel IR** 로 컴파일 (캐시 유지)                                                                          | —                                                                                 |
-| **3. 패키징**            | • `libflutter.so`/`Flutter.framework`(엔진 + Dart VM JIT) 포함<br>• `app.dill` → `kernel_blob.bin`<br>• 서비스 프로토콜·DevTools 디버그 심볼 포함 | —                                                                                 |
-| **4. 설치 & 로딩**       | adb / Xcode를 통해 APK·IPA 설치                                                                                                                   | OS가 엔진 라이브러리 로드 → **Dart VM JIT 초기화**                                |
-| **5. Isolate 부팅**      | —                                                                                                                                                 | `kernel_blob.bin` 읽어 **스크립트 스냅샷** 생성 → `main()` Isolate 실행           |
-| **6. 이벤트 루프**       | IDE > DevFS 채널로 입력·명령 전송                                                                                                                 | UI 스레드(위젯 빌드) ↔ GPU 스레드(래스터) ↔ Platform 스레드(입력)                 |
-| **7. Hot Reload**        | 저장(Ctrl-S) → 수정 파일 목록 전달 → `frontend_server`가 **증분 .dill** 생성 → VM Service로 푸시                                                  | VM이 클래스 바이트코드 갱신 → 변경 함수 **즉시 JIT** → `reassemble()` → 새 프레임 |
-| **8. Hot Restart**       | `R` 키 → 새 스냅샷 전체 전송                                                                                                                      | 기존 Isolate 종료 → 새 Isolate 부팅 (상태 초기화)                                 |
-| **9. 디버깅**            | DevTools, Observatory, 로그, 메모리·CPU 프로파일링                                                                                                | VM Service로 실시간 통계 제공                                                     |
-
-### Flutter 엔진이 컴파일 된 앱을 실행하는 방법
+| 단계                     | 호스트(개발자 PC)                                                                                                                           | 디바이스(에뮬레이터·실기기)                                                       |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| **1. 빌드 명령**         | `flutter run` (Debug) 실행                                                                                                                  | —                                                                                 |
+| **2. 프론트엔드 컴파일** | `CFE`가 모든 Dart 파일을 **Kernel IR** 로 컴파일 (캐시 유지)                                                                                | —                                                                                 |
+| **3. 패키징**            | `libflutter.so`/`Flutter.framework`(엔진 + Dart VM JIT) 포함<br>`app.dill` → `kernel_blob.bin`<br>서비스 프로토콜·DevTools 디버그 심볼 포함 | —                                                                                 |
+| **4. 설치 & 로딩**       | adb / Xcode를 통해 APK·IPA 설치                                                                                                             | OS가 엔진 라이브러리 로드 → **Dart VM JIT 초기화**                                |
+| **5. Isolate 부팅**      | —                                                                                                                                           | `kernel_blob.bin` 읽어 **스크립트 스냅샷** 생성 → `main()` Isolate 실행           |
+| **6. Hot Reload**        | 저장(Ctrl-S) → 수정 파일 목록 전달 → `frontend_server`가 **증분 .dill** 생성 → VM Service로 푸시                                            | VM이 클래스 바이트코드 갱신 → 변경 함수 **즉시 JIT** → `reassemble()` → 새 프레임 |
+| **7. Hot Restart**       | `R` 키 → 새 스냅샷 전체 전송                                                                                                                | 기존 Isolate 종료 → 새 Isolate 부팅 (상태 초기화)                                 |
+| **8. 디버깅**            | DevTools, Observatory, 로그, 메모리·CPU 프로파일링                                                                                          | VM Service로 실시간 통계 제공                                                     |
