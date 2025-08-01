@@ -162,3 +162,17 @@ Hot Restart를 실행시키면 실행 기기에서 돌고 있던 main 함수를 
 | **6. Hot Reload**        | 저장(Ctrl-S) → 수정 파일 목록 전달 → `frontend_server`가 **증분 .dill** 생성 → VM Service로 푸시                                            | VM이 클래스 바이트코드 갱신 → 변경 함수 **즉시 JIT** → `reassemble()` → 새 프레임 |
 | **7. Hot Restart**       | `R` 키 → 새 스냅샷 전체 전송                                                                                                                | 기존 Isolate 종료 → 새 Isolate 부팅 (상태 초기화)                                 |
 | **8. 디버깅**            | DevTools, Observatory, 로그, 메모리·CPU 프로파일링                                                                                          | VM Service로 실시간 통계 제공                                                     |
+
+### 참고자료
+
+https://proandroiddev.com/flutters-compilation-patterns-24e139d14177
+https://docs.flutter.dev/resources/architectural-overview
+https://docs.flutter.dev/tools/hot-reload
+https://docs.flutter.dev/testing/build-modes
+https://zenn.dev/tsuruo/articles/48909d22d49ffe
+https://medium.com/@howyoujini/%EC%BD%94%EB%93%9C%EA%B0%80-%EC%96%B4%EB%96%BB%EA%B2%8C-%ED%99%94%EB%A9%B4%EC%9D%B4-%EB%90%98%EB%82%98-1-aot-vs-jit-compilation-with-flutter-19af2b5f8d51
+https://medium.com/@howyoujini/flutter-%EC%BD%94%EB%93%9C%EA%B0%80-%EC%96%B4%EB%96%BB%EA%B2%8C-%ED%99%94%EB%A9%B4%EC%9D%B4-%EB%90%98%EB%82%98%EC%9A%94-2-dart-virtual-machine-e1addfdb9724
+https://flutterdart.hashnode.dev/compilers-in-dart
+https://mrale.ph/dartvm/
+https://medium.com/@flutterdevs/compilers-and-snapshots-in-dart-3abdd1ee56e9
+https://medium.com/flutter/flutters-ios-application-bundle-6f56d4e88cf8
